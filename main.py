@@ -4,7 +4,7 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the School Learning Management System"}
+    return {"message": "Hello from the void"}
 
 if __name__ == "__main__":
     import uvicorn
