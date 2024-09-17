@@ -12,14 +12,32 @@
     <nav>
       <ul>
         <li><a href=" /">Home</a></li>
-        <li><a href="#courses">Courses</a></li>
         <li><a href="#grades">Grades</a></li>
         <li><a href="#schedule">Schedule</a></li>
       </ul>
     </nav>
     </header>
     <main>
-      <p>More content here eventually.</p>
+      <section id="about">
+        <h2>About Our LMS</h2>
+        <p>This is the school Learning Management System. Access grades, and schedules.</p>
+      </section>
+      <section id="login">
+        <h2>Login</h2>
+        <form action="/login" method="post">
+          <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+          </div>
+          <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <div>
+            <button type="submit">Login</button>
+          </div>
+        </form>
+      </section>
     </main>
   </body>
 </html>
