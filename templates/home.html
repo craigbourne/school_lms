@@ -22,6 +22,11 @@
         <h2>About Our LMS</h2>
         <p>This is the school Learning Management System. Access grades, and schedules.</p>
       </section>
+      {% if message %}
+      <section id="message">
+        <p>{{ message }}</p>
+      </section>
+      {% endif %}
       <section id="login">
         <h2>Login</h2>
         <form action="/login" method="post">
