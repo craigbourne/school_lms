@@ -17,8 +17,8 @@ async def home(request: Request):
 
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    # Here you would typically validate the username and password
-    # For now, we'll just print them and redirect back to the home page
+    # Here we want to eventually validate the username and password
+    # For now, we'll just print and redirect back to the home page
     print(f"Login attempt - Username: {username}, Password: {password}")
     return templates.TemplateResponse("home.html", {"request": request, "message": f"Login attempt for {username}"})
 
