@@ -1,48 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}"">
   <title>School LMS</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
 </head>
+
 <body>
   <header>
     <h1>Welcome to School LMS</h1>
-    <nav>
-      <ul>
-        <li><a href=" /">Home</a></li>
-        <li><a href="#grades">Grades</a></li>
-        <li><a href="#schedule">Schedule</a></li>
-      </ul>
-    </nav>
-    </header>
-    <main>
-      <section id="about">
-        <h2>About Our LMS</h2>
-        <p>This is the school Learning Management System. Access grades, and schedules.</p>
-      </section>
-      {% if message %}
-      <section id="message">
-        <p>{{ message }}</p>
-      </section>
-      {% endif %}
-      <section id="login">
-        <h2>Login</h2>
-        <form action="/login" method="post">
-          <div>
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-          </div>
-          <div>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-          </div>
-          <div>
-            <button type="submit">Login</button>
-          </div>
-        </form>
-      </section>
-    </main>
-  </body>
+  </header>
+  <main>
+    {% if message %}
+    <div class="message success">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="message error">{{ error }}</div>
+    {% endif %}
+    <section id="register">
+      <h2>Register</h2>
+      <form action="/register" method="post">
+        <div>
+          <label for="reg-username">Username:</label>
+          <input type="text" id="reg-username" name="username" required>
+        </div>
+        <div>
+          <label for="reg-password">Password:</label>
+          <input type="password" id="reg-password" name="password" required>
+        </div>
+        <div>
+          <label for="reg-email">Email:</label>
+          <input type="email" id="reg-email" name="email" required>
+        </div>
+        <div>
+          <button type="submit">Register</button>
+        </div>
+      </form>
+    </section>
+    <section id="login">
+      <h2>Login</h2>
+      <form action="/token" method="post">
+        <div>
+          <label for="username">Username:</label>
+          <input type="text" id="username" name="username" required>
+        </div>
+        <div>
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <div>
+          <button type="submit">Login</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+
 </html>

@@ -3,7 +3,6 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from pydantic import EmailStr
 from typing import List
 from models import User, UserCreate, UserInDB
 
@@ -42,20 +41,27 @@ async def home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})
 
 @app.post("/register")
-async def register(user: UserCreate):
-    if get_user(user.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = pwd_context.hash(user.password)
-    user_in_db = UserInDB(**user.dict(), hashed_password=hashed_password)
+async def register(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    email: str = Form(...)
+):
+    if get_user(username):
+        return templates.TemplateResponse("home.html", {"request": request, "error": "Username already registered"})
+    
+    hashed_password = pwd_context.hash(password)
+    user_create = UserCreate(username=username, email=email, password=password)
+    user_in_db = UserInDB(**user_create.dict(), hashed_password=hashed_password)
     users_db.append(user_in_db)
-    return {"message": "User created successfully"}
+    return templates.TemplateResponse("home.html", {"request": request, "message": "User created successfully"})
 
 @app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     # Here we want to eventually validate the username and password
     # For now, we'll just print and redirect back to the home page
     print(f"Login attempt - Username: {form_data.username}, Password: {form_data.password}")
-    return {"access_token": form_data.username, "token_type": "bearer"}
+    return templates.TemplateResponse("home.html", {"request": request, "message": f"Login attempt for {form_data.username}"})
 
 @app.get("/users/me")
 async def read_users_me(current_user: User = Depends(oauth2_scheme)):
