@@ -64,7 +64,6 @@ async def register(
             "register.html",
             {"request": request, "error": "Username already registered"}
         )
-    
     hashed_password = pwd_context.hash(password)
     user_in_db = UserInDB(username=username, email=email, hashed_password=hashed_password)
     users_db.append(user_in_db)
@@ -92,3 +91,4 @@ async def read_users_me(current_user: User = Depends(oauth2_scheme)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

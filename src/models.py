@@ -1,6 +1,7 @@
 # Module containing user-related data models for the LMS application.
 
 from typing import Optional
+# pylint: disable=no-name-in-module
 from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
@@ -24,3 +25,4 @@ class User(UserBase):
 class UserInDB(User):
     # User model for database storage, including hashed password.
     hashed_password: str
+
