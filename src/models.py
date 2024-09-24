@@ -25,4 +25,3 @@ class User(UserBase):
 class UserInDB(User):
     # User model for database storage, including hashed password.
     hashed_password: str
-
