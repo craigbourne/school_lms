@@ -1,7 +1,7 @@
 # Main module for the LMS application, containing FastAPI app and route definitions.
 
 from typing import List
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -73,15 +73,18 @@ async def register(
     )
 
 @app.post("/login")
-async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     # Handle user login.
-    # Here we want to eventually validate the username and password
-    # For now, we'll just print and redirect back to the home page
-    print(f"Login attempt - Username: {form_data.username}, Password: {form_data.password}")
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request, "message": f"Login attempt for {form_data.username}"}
-    )
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Here we'll add JWT token generation later
+    return {"access_token": user.username, "token_type": "bearer"}
+
 
 @app.get("/users/me")
 async def read_users_me(current_user: User = Depends(oauth2_scheme)):
@@ -91,4 +94,3 @@ async def read_users_me(current_user: User = Depends(oauth2_scheme)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
