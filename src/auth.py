@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from models import UserInDB
+from token_blacklist import is_blacklisted
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -49,6 +50,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
+    if is_blacklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been invalidated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -68,13 +76,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
 
 # Add authenticate_user to the __all__ list if you have one, or create one:
 __all__ = [
-  'create_access_token', 
-  'get_current_user', 
-  'ACCESS_TOKEN_EXPIRE_MINUTES', 
-  'get_user', 
-  'users_db', 
-  'pwd_context', 
-  'authenticate_user', 
-  'get_password_hash', 
-  'verify_password'
-  ]
+    'create_access_token', 
+    'get_current_user', 
+    'ACCESS_TOKEN_EXPIRE_MINUTES', 
+    'get_user', 
+    'users_db', 
+    'pwd_context', 
+    'authenticate_user', 
+    'get_password_hash', 
+    'verify_password'
+]
+

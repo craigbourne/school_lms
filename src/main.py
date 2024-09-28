@@ -4,12 +4,13 @@ from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from models import UserInDB
 from auth import (
     create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES,
     get_user, users_db, authenticate_user, pwd_context
 )
+from token_blacklist import add_to_blacklist
 
 app = FastAPI()
 
@@ -18,6 +19,8 @@ templates = Jinja2Templates(directory="templates")
 
 # Mount a static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @app.get("/")
 async def home(request: Request):
@@ -78,6 +81,11 @@ async def login(username: str = Form(...), password: str = Form(...)):
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    add_to_blacklist(token)
+    return {"message": "Successfully logged out"}
 
 @app.get("/users/me")
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
