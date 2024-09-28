@@ -5,7 +5,6 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
 }
 
 header {
@@ -70,4 +69,19 @@ button {
 
 .error {
   color: #f44336;
+}
+
+.logout-button {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #f44336;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
 }

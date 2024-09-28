@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Optional, List
 from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from models import UserInDB
-from token_blacklist import is_blacklisted
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -14,7 +13,21 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
+    async def __call__(self, request: Request, access_token: str = Cookie(None)):
+        if not access_token:
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                return None
+        return access_token
+
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="token")
 
 # Simulated database
 users_db: List[UserInDB] = []
@@ -50,13 +63,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
-    if is_blacklisted(token):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been invalidated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+    print(f"Token received in get_current_user: {token}")  # Debug print
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -65,16 +72,20 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        print(f"Decoded username from token: {username}")  # Debug print
         if username is None:
+            print("Username is None")  # Debug print
             raise credentials_exception
     except JWTError as exc:
+        print(f"JWT decoding error: {exc}")  # Debug print
         raise credentials_exception from exc
     user = get_user(username)
     if user is None:
+        print("User not found in database")  # Debug print
         raise credentials_exception
+    print(f"User authenticated: {user.username}")  # Debug print
     return user
 
-# Add authenticate_user to the __all__ list if you have one, or create one:
 __all__ = [
     'create_access_token', 
     'get_current_user', 
@@ -84,6 +95,6 @@ __all__ = [
     'pwd_context', 
     'authenticate_user', 
     'get_password_hash', 
-    'verify_password'
+    'verify_password',
+    'oauth2_scheme'
 ]
-

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - School LMS</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+
+<body>
+  <header>
+    <h1>Welcome to School LMS Dashboard</h1>
+  </header>
+  <main>
+    <h2>Welcome, {{ user.username }}!</h2>
+    <p>This is your dashboard. Here you can view your courses, grades, and more.</p>
+    <!-- More content her elater on - timetable, grades etc -->
+
+    <div>
+      <a href="/logout" class="logout-button">Logout</a>
+    </div>
+  </main>
+</body>
+
+</html>
