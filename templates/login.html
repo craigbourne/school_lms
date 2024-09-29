@@ -9,13 +9,15 @@
 <body>
   <header>
     <h1>Welcome to School LMS</h1>
-    {% if request.cookies.get("access_token") %}
-    <a href="/logout">Logout</a>
-    {% endif %}
   </header>
   <main>
     <section id="login">
       <h2>Login</h2>
+      {% if error %}
+      <div class="error-message">
+        {{ error }}
+      </div>
+      {% endif %}
       <form action="/login" method="post">
         <div>
           <label for="username">Username:</label>
@@ -32,13 +34,5 @@
       <p>Don't have an account? <a href="/register">Sign Up</a></p>
     </section>
   </main>
-  <div id="messages">
-    {% if message %}
-    <div class="message success">{{ message }}</div>
-    {% endif %}
-    {% if error %}
-    <div class="message error">{{ error }}</div>
-    {% endif %}
-  </div>
 </body>
 </html>

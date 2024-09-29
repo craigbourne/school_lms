@@ -46,32 +46,45 @@ async def register(
     users_db.append(user_in_db)
     return RedirectResponse(url="/", status_code=303)
 
+# track login attempts
+login_attempts = {}
 @app.post("/login")
-async def login(response: Response, username: str = Form(...), password: str = Form(...)):
-    print(f"Login attempt for username: {username}")  # Debug print
+async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password)
     if user is None:
-        print("Authentication failed")  # Debug print
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+        # Increment failed login attempts
+        login_attempts[username] = login_attempts.get(username, 0) + 1
+        
+        if login_attempts[username] >= 5:
+            # Lock out user after 5 failed attempts
+            return templates.TemplateResponse(
+                "login.html",
+                {"request": request, "error": "Account locked. Please contact support."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": f"Incorrect username or password. {5 - login_attempts[username]} attempts remaining."},
+            status_code=status.HTTP_401_UNAUTHORIZED
         )
-    print("Authentication successful")  # Debug print
+    
+    # Reset login attempts on successful login
+    login_attempts.pop(username, None)
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    print(f"Access token created: {access_token}")  # Debug print
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
         key="access_token", 
         value=f"Bearer {access_token}", 
         httponly=True,
-        max_age=1800,  # 30 minutes
+        max_age=1800,
         expires=1800,
         path="/"
     )
-    print(f"Setting cookie: access_token=Bearer {access_token}")
     return response
 
 @app.get("/dashboard")
@@ -79,10 +92,10 @@ async def dashboard(request: Request, access_token: str = Cookie(None)):
     print("Headers:", request.headers)
     print("Cookies:", request.cookies)
     print("Access Token from Cookie:", access_token)
-    
+
     if not access_token:
         return RedirectResponse(url="/", status_code=303)
-    
+
     try:
         token = access_token.split("Bearer ")[1]
         current_user = get_current_user(token)
