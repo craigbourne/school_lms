@@ -136,6 +136,27 @@ async def create_lesson(lesson: Lesson, current_user: UserInDB = Depends(get_cur
     lessons_db.append(lesson)
     return lesson
 
+@app.put("/lessons/{lesson_id}", response_model=Lesson)
+async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can update lessons")
+    for i, lesson in enumerate(lessons_db):
+        if lesson.id == lesson_id:
+            updated_lesson.id = lesson_id
+            lessons_db[i] = updated_lesson
+            return updated_lesson
+    raise HTTPException(status_code=404, detail="Lesson not found")
+
+@app.delete("/lessons/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
+    for i, lesson in enumerate(lessons_db):
+        if lesson.id == lesson_id:
+            lessons_db.pop(i)
+            return
+    raise HTTPException(status_code=404, detail="Lesson not found")
+
 @app.get("/timetable/{user_id}", response_model=Timetable)
 async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_current_user)):
     # Need to fetch actual timetable from database
