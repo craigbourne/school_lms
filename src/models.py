@@ -1,8 +1,9 @@
 # Module containing user-related data models for the LMS application.
 
-from typing import Optional
+from typing import Optional, List
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel, EmailStr
+from datetime import datetime, time
 
 class UserBase(BaseModel):
     # Base user model containing common attributes.
@@ -25,3 +26,18 @@ class User(UserBase):
 class UserInDB(User):
     # User model for database storage, including hashed password.
     hashed_password: str
+    
+
+class Lesson(BaseModel):
+    id: int
+    subject: str
+    teacher: str
+    classroom: str
+    day_of_week: str  # e.g., "Monday", "Tuesday", etc.
+    start_time: time
+    end_time: time
+
+class Timetable(BaseModel):
+    id: int
+    user_id: int  # This can be a student's or teacher's ID
+    lessons: List[Lesson]

@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from datetime import timedelta
-from models import UserInDB
+from models import Lesson, Timetable, UserInDB
 from auth import (
     create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES,
     get_user, users_db, authenticate_user, pwd_context, get_password_hash
@@ -20,6 +20,9 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Simulated database for lessons
+lessons_db = []
 
 @app.get("/")
 async def home(request: Request):
@@ -48,6 +51,7 @@ async def register(
 
 # track login attempts
 login_attempts = {}
+
 @app.post("/login")
 async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password)
@@ -109,6 +113,23 @@ async def logout(request: Request):
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("access_token")
     return response
+
+@app.post("/lessons/", response_model=Lesson)
+async def create_lesson(lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
+    # For now, only admins can create lessons
+    # Still need to implement role-based access control. Will come back to later
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can create lessons")
+    lesson.id = len(lessons_db) + 1  # Simple ID assignment
+    lessons_db.append(lesson)
+    return lesson
+
+@app.get("/timetable/{user_id}", response_model=Timetable)
+async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_current_user)):
+    # Need to fetch actual timetable from database
+    # For now, return a dummy timetable
+    return Timetable(id=1, user_id=user_id, lessons=lessons_db)
+
 
 if __name__ == "__main__":
     import uvicorn
