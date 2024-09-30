@@ -10,6 +10,7 @@ from auth import (
     get_user, users_db, authenticate_user, pwd_context, get_password_hash
 )
 from token_blacklist import add_to_blacklist
+from typing import List
 
 app = FastAPI()
 
@@ -91,6 +92,12 @@ async def login(request: Request, response: Response, username: str = Form(...),
     )
     return response
 
+@app.get("/logout")
+async def logout(request: Request):
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("access_token")
+    return response
+
 @app.get("/dashboard")
 async def dashboard(request: Request, access_token: str = Cookie(None)):
     print("Headers:", request.headers)
@@ -108,11 +115,16 @@ async def dashboard(request: Request, access_token: str = Cookie(None)):
         print(f"Error in dashboard route: {e}")
         return RedirectResponse(url="/", status_code=303)
 
-@app.get("/logout")
-async def logout(request: Request):
-    response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie("access_token")
-    return response
+@app.get("/lessons/", response_model=List[Lesson])
+async def list_lessons(current_user: UserInDB = Depends(get_current_user)):
+    return lessons_db
+
+@app.get("/lessons/{lesson_id}", response_model=Lesson)
+async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
+    for lesson in lessons_db:
+        if lesson.id == lesson_id:
+            return lesson
+    raise HTTPException(status_code=404, detail="Lesson not found")
 
 @app.post("/lessons/", response_model=Lesson)
 async def create_lesson(lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
