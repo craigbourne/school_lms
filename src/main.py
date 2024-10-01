@@ -1,6 +1,6 @@
 from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user,
     get_user, users_db, authenticate_user, pwd_context, get_password_hash)
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -20,11 +20,27 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# track login attempts
+login_attempts = {}
+
 # Simulated database for lessons
 lessons_db = []
 
 # Database for lessons
 timetables_db: List[Timetable] = []
+
+# Mock data
+mock_lessons = [
+    Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:00", "%H:%M").time()),
+    Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=datetime.strptime("10:30", "%H:%M").time(), end_time=datetime.strptime("11:30", "%H:%M").time()),
+    Lesson(id=3, subject="Science", teacher="Dr. Brown", classroom="Lab 1", day_of_week="Tuesday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:30", "%H:%M").time()),
+]
+
+mock_timetable = Timetable(id=1, user_id=1, week_start=date.today(), week_end=date.today() + timedelta(days=6), lessons=mock_lessons)
+
+timetables_db = [mock_timetable]
+lessons_db = mock_lessons
+
 
 @app.get("/")
 async def home(request: Request):
@@ -55,9 +71,6 @@ async def register(
     )
     users_db.append(new_user)
     return RedirectResponse(url="/", status_code=303)
-
-# track login attempts
-login_attempts = {}
 
 @app.post("/login")
 async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
@@ -105,21 +118,9 @@ async def logout(request: Request):
     return response
 
 @app.get("/dashboard")
-async def dashboard(request: Request, access_token: str = Cookie(None)):
-    print("Headers:", request.headers)
-    print("Cookies:", request.cookies)
-    print("Access Token from Cookie:", access_token)
-
-    if not access_token:
-        return RedirectResponse(url="/", status_code=303)
-
-    try:
-        token = access_token.split("Bearer ")[1]
-        current_user = get_current_user(token)
-        return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
-    except Exception as e:
-        print(f"Error in dashboard route: {e}")
-        return RedirectResponse(url="/", status_code=303)
+async def dashboard(request: Request, current_user: UserInDB = Depends(get_current_user)):
+    user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "timetable": user_timetable})
 
 @app.get("/lessons/", response_model=List[Lesson])
 async def list_lessons(current_user: UserInDB = Depends(get_current_user)):
@@ -134,17 +135,23 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
 
 @app.post("/lessons/", response_model=Lesson)
 async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only administrators can create lessons")
-    
-    timetable = next((t for t in timetables_db if t.id == timetable_id), None)
-    if not timetable:
-        raise HTTPException(status_code=404, detail="Timetable not found")
-    
-    lesson.id = len(lessons_db) + 1
-    lessons_db.append(lesson)
-    timetable.lessons.append(lesson)
-    return lesson
+    try:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Only administrators can create lessons")
+        
+        timetable = next((t for t in timetables_db if t.id == timetable_id), None)
+        if not timetable:
+            raise HTTPException(status_code=404, detail="Timetable not found")
+        
+        lesson.id = len(lessons_db) + 1
+        lessons_db.append(lesson)
+        timetable.lessons.append(lesson)
+        return lesson
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(ve)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
 async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
@@ -175,14 +182,19 @@ async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_curre
 
 @app.get("/timetables/{user_id}", response_model=Timetable)
 async def get_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.id != user_id and current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="You can only view your own timetable")
-    
-    timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
-    if not timetable:
-        raise HTTPException(status_code=404, detail="Timetable not found")
-    
-    return timetable
+    try:
+        if current_user.id != user_id and current_user.role not in ["admin", "teacher"]:
+            raise HTTPException(status_code=403, detail="You can only view your own timetable")
+        
+        timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+        if not timetable:
+            raise HTTPException(status_code=404, detail="Timetable not found")
+        
+        return timetable
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @app.post("/timetables/", response_model=Timetable)
 async def create_timetable(timetable: TimetableCreate, current_user: UserInDB = Depends(get_current_user)):
