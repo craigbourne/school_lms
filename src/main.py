@@ -1,12 +1,12 @@
 from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user,
     get_user, users_db, authenticate_user, pwd_context, get_password_hash)
-from datetime import timedelta
+from datetime import date, timedelta
 from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from models import Lesson, Timetable, UserInDB
+from models import Lesson, Timetable, TimetableCreate, UserInDB
 from token_blacklist import add_to_blacklist
 from typing import List
 
@@ -22,6 +22,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Simulated database for lessons
 lessons_db = []
+
+# Database for lessons
+timetables_db: List[Timetable] = []
 
 @app.get("/")
 async def home(request: Request):
@@ -165,6 +168,22 @@ async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_curre
     # Need to fetch actual timetable from database
     # For now, return a dummy timetable
     return Timetable(id=1, user_id=user_id, lessons=lessons_db)
+
+@app.post("/timetables/", response_model=Timetable)
+async def create_timetable(timetable: TimetableCreate, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Only administrators and teachers can create timetables")
+    
+    # Logic to create a timetable
+    new_timetable = Timetable(
+        id=len(timetables_db) + 1,
+        user_id=timetable.user_id,
+        week_start=timetable.week_start,
+        week_end=timetable.week_end,
+        lessons=[]
+    )
+    timetables_db.append(new_timetable)
+    return new_timetable
 
 @app.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
