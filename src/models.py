@@ -24,9 +24,18 @@ class User(UserBase):
         orm_mode = True
 
 class UserInDB(User):
-    # User model for database storage, including hashed password.
     hashed_password: str
-    
+
+class UserInDB(BaseModel):
+    # User model for database storage, including hashed password.
+    id: Optional[int] = None
+    username: str
+    email: EmailStr
+    hashed_password: str
+    role: str = "student"  # default role, can be "admin", "teacher", etc.
+
+    class Config:
+        orm_mode = True
 
 class Lesson(BaseModel):
     id: int

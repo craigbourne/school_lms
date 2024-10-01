@@ -40,14 +40,19 @@ async def register(
     password: str = Form(...),
     email: str = Form(...)
 ):
-    if get_user(username):
+    if any(user.username == username for user in users_db):
         return templates.TemplateResponse(
             "register.html",
             {"request": request, "error": "Username already registered"}
         )
     hashed_password = get_password_hash(password)
-    user_in_db = UserInDB(username=username, email=email, hashed_password=hashed_password)
-    users_db.append(user_in_db)
+    new_user = UserInDB(
+        id=len(users_db) + 1,  # Simple ID assignment
+        username=username,
+        email=email,
+        hashed_password=hashed_password
+    )
+    users_db.append(new_user)
     return RedirectResponse(url="/", status_code=303)
 
 # track login attempts
@@ -163,6 +168,28 @@ async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_curre
     # For now, return a dummy timetable
     return Timetable(id=1, user_id=user_id, lessons=lessons_db)
 
+@app.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/users/me")
+async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
+    return current_user
+
+@app.get("/protected")
+async def protected_route(current_user: UserInDB = Depends(get_current_user)):
+    return {"message": f"Hello, {current_user.username}! This is a protected route."}
 
 if __name__ == "__main__":
     import uvicorn
