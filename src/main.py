@@ -1,14 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Form, Response, Cookie
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user,
+    get_user, users_db, authenticate_user, pwd_context, get_password_hash)
 from datetime import timedelta
+from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from models import Lesson, Timetable, UserInDB
-from auth import (
-    create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_user, users_db, authenticate_user, pwd_context, get_password_hash
-)
 from token_blacklist import add_to_blacklist
 from typing import List
 

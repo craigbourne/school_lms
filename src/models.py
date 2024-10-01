@@ -1,9 +1,9 @@
 # Module containing user-related data models for the LMS application.
 
-from typing import Optional, List
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel, EmailStr
-from datetime import datetime, time
+from typing import List, Optional
+from datetime import date, datetime, time
 
 class UserBase(BaseModel):
     # Base user model containing common attributes.
@@ -48,5 +48,12 @@ class Lesson(BaseModel):
 
 class Timetable(BaseModel):
     id: int
-    user_id: int  # This can be a student's or teacher's ID
+    user_id: int
+    week_start: date
+    week_end: date
     lessons: List[Lesson]
+
+class TimetableCreate(BaseModel):
+    user_id: int
+    week_start: date
+    week_end: date

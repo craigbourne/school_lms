@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Optional, List
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status, Request, Cookie
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
+from jose import jwt, JWTError
 from models import UserInDB
+from passlib.context import CryptContext
+from typing import List, Optional
 
 # to get a string like this run:
 # openssl rand -hex 32
