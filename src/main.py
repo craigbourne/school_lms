@@ -133,13 +133,17 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
     raise HTTPException(status_code=404, detail="Lesson not found")
 
 @app.post("/lessons/", response_model=Lesson)
-async def create_lesson(lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
-    # For now, only admins can create lessons
-    # Still need to implement role-based access control. Will come back to later
+async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can create lessons")
-    lesson.id = len(lessons_db) + 1  # Simple ID assignment
+    
+    timetable = next((t for t in timetables_db if t.id == timetable_id), None)
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    
+    lesson.id = len(lessons_db) + 1
     lessons_db.append(lesson)
+    timetable.lessons.append(lesson)
     return lesson
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
