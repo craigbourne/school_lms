@@ -103,12 +103,13 @@ async def login(request: Request, response: Response, username: str = Form(...),
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
         key="access_token", 
-        value=f"Bearer {access_token}", 
+        value=f"Bearer {access_token}",  # Add 'Bearer ' prefix back
         httponly=True,
         max_age=1800,
         expires=1800,
         path="/"
     )
+    print(f"Setting access_token cookie: Bearer {access_token}")  # Debug print
     return response
 
 @app.get("/logout")
@@ -119,6 +120,9 @@ async def logout(request: Request):
 
 @app.get("/dashboard")
 async def dashboard(request: Request, current_user: UserInDB = Depends(get_current_user)):
+    print(f"Dashboard accessed by user: {current_user.username if current_user else 'No user'}")  # Debug print
+    if not current_user:
+        return RedirectResponse(url="/login")
     user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "timetable": user_timetable})
 

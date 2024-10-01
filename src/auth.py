@@ -27,10 +27,7 @@ class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
                 return None
         return access_token
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="token",
-    auto_error=False
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # Simulated database
 users_db: List[UserInDB] = []
@@ -65,13 +62,19 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(request: Request, access_token: Optional[str] = Cookie(None)) -> UserInDB:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if not access_token:
+        raise credentials_exception
+    
+    print(f"Received access_token: {access_token}")  # Debug print
+
     try:
+        token = access_token.split("Bearer ")[1]
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
@@ -80,7 +83,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if user is None:
             raise credentials_exception
         return user
-    except JWTError:
+    except (JWTError, IndexError) as e:
+        print(f"Error decoding token: {str(e)}")  # Debug print
         raise credentials_exception
 
 __all__ = [
