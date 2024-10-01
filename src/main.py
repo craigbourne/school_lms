@@ -169,6 +169,17 @@ async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_curre
     # For now, return a dummy timetable
     return Timetable(id=1, user_id=user_id, lessons=lessons_db)
 
+@app.get("/timetables/{user_id}", response_model=Timetable)
+async def get_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.id != user_id and current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="You can only view your own timetable")
+    
+    timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    
+    return timetable
+
 @app.post("/timetables/", response_model=Timetable)
 async def create_timetable(timetable: TimetableCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
