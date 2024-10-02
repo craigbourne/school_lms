@@ -12,6 +12,7 @@
   </header>
   <main>
     <h2>Welcome, {{ user.username }}!</h2>
+    <p>Role: {{ user.role }}</p>
     {% if timetable %}
     <h3>Your Timetable for the Week of {{ timetable.week_start }}</h3>
     <table>

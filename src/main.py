@@ -55,19 +55,28 @@ async def register(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
-    email: str = Form(...)
+    email: str = Form(...),
+    role: str = Form(...)
 ):
+    if role not in ["admin", "teacher", "student"]:
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "error": "Invalid role"}
+        )
+    
     if any(user.username == username for user in users_db):
         return templates.TemplateResponse(
             "register.html",
             {"request": request, "error": "Username already registered"}
         )
+    
     hashed_password = get_password_hash(password)
     new_user = UserInDB(
-        id=len(users_db) + 1,  # Simple ID assignment
+        id=len(users_db) + 1,
         username=username,
         email=email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        role=role
     )
     users_db.append(new_user)
     return RedirectResponse(url="/", status_code=303)
