@@ -1,6 +1,6 @@
 from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user,
     get_user, users_db, authenticate_user, pwd_context, get_password_hash)
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -36,9 +36,19 @@ mock_lessons = [
     Lesson(id=3, subject="Science", teacher="Dr. Brown", classroom="Lab 1", day_of_week="Tuesday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:30", "%H:%M").time()),
 ]
 
-mock_timetable = Timetable(id=1, user_id=1, week_start=date.today(), week_end=date.today() + timedelta(days=6), lessons=mock_lessons)
+mock_timetable = Timetable(
+    id=1,
+    user_id=1,
+    week_start=date(2023, 5, 1),
+    week_end=date(2023, 5, 7),
+    lessons=[
+        Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=time(9, 0), end_time=time(10, 0)),
+        Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=time(10, 30), end_time=time(11, 30)),
+    ]
+)
 
 timetables_db = [mock_timetable]
+print(timetables_db)
 lessons_db = mock_lessons
 
 
@@ -148,28 +158,22 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
 
 @app.post("/lessons/", response_model=Lesson)
 async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
-    try:
-        if current_user.role != "admin":
-            raise HTTPException(status_code=403, detail="Only administrators can create lessons")
-        
-        timetable = next((t for t in timetables_db if t.id == timetable_id), None)
-        if not timetable:
-            raise HTTPException(status_code=404, detail="Timetable not found")
-        
-        lesson.id = len(lessons_db) + 1
-        lessons_db.append(lesson)
-        timetable.lessons.append(lesson)
-        return lesson
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(ve)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Only administrators and teachers can create lessons")
+    
+    timetable = next((t for t in timetables_db if t.id == timetable_id), None)
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    
+    lesson.id = len(lessons_db) + 1
+    lessons_db.append(lesson)
+    timetable.lessons.append(lesson)
+    return lesson
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
 async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only administrators can update lessons")
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Only administrators and teachers can update lessons")
     for i, lesson in enumerate(lessons_db):
         if lesson.id == lesson_id:
             updated_lesson.id = lesson_id
@@ -192,6 +196,20 @@ async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_curre
     # Need to fetch actual timetable from database
     # For now, return a dummy timetable
     return Timetable(id=1, user_id=user_id, lessons=lessons_db)
+
+@app.get("/timetables/{user_id}/{week_start}", response_model=Timetable)
+async def get_weekly_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
+    print(f"Searching for timetable: user_id={user_id}, week_start={week_start}")
+    print(f"Current timetables in db: {timetables_db}")
+    
+    if current_user.role == "student" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Students can only view their own timetable")
+    
+    timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    
+    return timetable
 
 @app.get("/timetables/{user_id}", response_model=Timetable)
 async def get_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
@@ -224,6 +242,17 @@ async def create_timetable(timetable: TimetableCreate, current_user: UserInDB = 
     )
     timetables_db.append(new_timetable)
     return new_timetable
+
+@app.get("/timetables/{user_id}/{week_start}", response_model=Timetable)
+async def get_weekly_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role == "student" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Students can only view their own timetable")
+    
+    timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    
+    return timetable
 
 @app.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
