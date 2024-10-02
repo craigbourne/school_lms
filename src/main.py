@@ -174,10 +174,16 @@ async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInD
 async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can update lessons")
+    
     for i, lesson in enumerate(lessons_db):
         if lesson.id == lesson_id:
             updated_lesson.id = lesson_id
             lessons_db[i] = updated_lesson
+            # Update lesson in timetable
+            for timetable in timetables_db:
+                for j, timetable_lesson in enumerate(timetable.lessons):
+                    if timetable_lesson.id == lesson_id:
+                        timetable.lessons[j] = updated_lesson
             return updated_lesson
     raise HTTPException(status_code=404, detail="Lesson not found")
 
@@ -185,9 +191,13 @@ async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: Us
 async def delete_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
+    
     for i, lesson in enumerate(lessons_db):
         if lesson.id == lesson_id:
             lessons_db.pop(i)
+            # Remove lesson from timetables
+            for timetable in timetables_db:
+                timetable.lessons = [l for l in timetable.lessons if l.id != lesson_id]
             return
     raise HTTPException(status_code=404, detail="Lesson not found")
 
