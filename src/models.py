@@ -37,14 +37,23 @@ class UserInDB(BaseModel):
     class Config:
         orm_mode = True
 
-class Lesson(BaseModel):
-    id: int
+class LessonBase(BaseModel):
     subject: str
     teacher: str
     classroom: str
     day_of_week: str  # e.g., "Monday", "Tuesday", etc.
     start_time: time
     end_time: time
+
+class LessonCreate(LessonBase):
+    pass
+
+class Lesson(LessonBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
 
 class Timetable(BaseModel):
     id: int

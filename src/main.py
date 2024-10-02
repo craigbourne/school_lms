@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from models import Lesson, Timetable, TimetableCreate, UserInDB
+from models import Lesson, LessonCreate, LessonBase, Timetable, TimetableCreate, UserInDB
 from token_blacklist import add_to_blacklist
 from typing import List
 
@@ -157,7 +157,7 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
     raise HTTPException(status_code=404, detail="Lesson not found")
 
 @app.post("/lessons/", response_model=Lesson)
-async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
+async def create_lesson(lesson: LessonCreate, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can create lessons")
     
@@ -165,26 +165,27 @@ async def create_lesson(lesson: Lesson, timetable_id: int, current_user: UserInD
     if not timetable:
         raise HTTPException(status_code=404, detail="Timetable not found")
     
-    lesson.id = len(lessons_db) + 1
-    lessons_db.append(lesson)
-    timetable.lessons.append(lesson)
-    return lesson
+    new_lesson = Lesson(id=len(lessons_db) + 1, **lesson.dict())
+    lessons_db.append(new_lesson)
+    timetable.lessons.append(new_lesson)
+    return new_lesson
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
-async def update_lesson(lesson_id: int, updated_lesson: Lesson, current_user: UserInDB = Depends(get_current_user)):
+async def update_lesson(lesson_id: int, updated_lesson: LessonCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can update lessons")
     
     for i, lesson in enumerate(lessons_db):
         if lesson.id == lesson_id:
-            updated_lesson.id = lesson_id
-            lessons_db[i] = updated_lesson
+            updated_lesson_dict = updated_lesson.dict()
+            updated_lesson_dict['id'] = lesson_id
+            lessons_db[i] = Lesson(**updated_lesson_dict)
             # Update lesson in timetable
             for timetable in timetables_db:
                 for j, timetable_lesson in enumerate(timetable.lessons):
                     if timetable_lesson.id == lesson_id:
-                        timetable.lessons[j] = updated_lesson
-            return updated_lesson
+                        timetable.lessons[j] = lessons_db[i]
+            return lessons_db[i]
     raise HTTPException(status_code=404, detail="Lesson not found")
 
 @app.delete("/lessons/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
