@@ -202,6 +202,43 @@ async def delete_lesson(lesson_id: int, current_user: UserInDB = Depends(get_cur
             return
     raise HTTPException(status_code=404, detail="Lesson not found")
 
+@app.get("/lessons/add/")
+async def lesson_add_form(request: Request, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Only administrators and teachers can add lessons")
+    return templates.TemplateResponse("lesson_add.html", {"request": request})
+
+@app.post("/lessons/add/")
+async def lesson_add(
+    request: Request,
+    subject: str = Form(...),
+    teacher: str = Form(...),
+    classroom: str = Form(...),
+    day_of_week: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    timetable_id: int = Form(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Only administrators and teachers can add lessons")
+    
+    # Convert time strings to time objects
+    start_time_obj = datetime.strptime(start_time, "%H:%M").time()
+    end_time_obj = datetime.strptime(end_time, "%H:%M").time()
+    
+    new_lesson = LessonCreate(
+        subject=subject,
+        teacher=teacher,
+        classroom=classroom,
+        day_of_week=day_of_week,
+        start_time=start_time_obj,
+        end_time=end_time_obj
+    )
+    
+    created_lesson = await create_lesson(new_lesson, timetable_id, current_user)
+    return RedirectResponse(url="/lessons/", status_code=303)
+
 @app.get("/timetable/{user_id}", response_model=Timetable)
 async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_current_user)):
     # Need to fetch actual timetable from database
