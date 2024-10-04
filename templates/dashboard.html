@@ -38,6 +38,7 @@
     {% else %}
     <p>No timetable available.</p>
     {% endif %}
+    <a href="{{ url_for('list_lessons') }}">View Lessons</a>
     <div>
       <a href="/logout" class="logout-button">Logout</a>
     </div>

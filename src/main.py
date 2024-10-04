@@ -145,9 +145,9 @@ async def dashboard(request: Request, current_user: UserInDB = Depends(get_curre
     user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "timetable": user_timetable})
 
-@app.get("/lessons/", response_model=List[Lesson])
-async def list_lessons(current_user: UserInDB = Depends(get_current_user)):
-    return lessons_db
+@app.get("/lessons/")
+async def list_lessons(request: Request, current_user: UserInDB = Depends(get_current_user)):
+    return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": lessons_db, "current_user": current_user})
 
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
 async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):

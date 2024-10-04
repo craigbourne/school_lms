@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson List</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+  <h1>Lesson List</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Teacher</th>
+        <th>Classroom</th>
+        <th>Day</th>
+        <th>Start Time</th>
+        <th>End Time</th>
+        {% if current_user.role in ['admin', 'teacher'] %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for lesson in lessons %}
+      <tr>
+        <td>{{ lesson.subject }}</td>
+        <td>{{ lesson.teacher }}</td>
+        <td>{{ lesson.classroom }}</td>
+        <td>{{ lesson.day_of_week }}</td>
+        <td>{{ lesson.start_time }}</td>
+        <td>{{ lesson.end_time }}</td>
+        {% if current_user.role in ['admin', 'teacher'] %}
+        <td>
+          <!-- Need add edit and delete links here later -->
+          Edit | Delete
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if current_user.role in ['admin', 'teacher'] %}
+  <!-- 'Add New Lesson' link here later -->
+  <p>Add New Lesson ( still to do)</p>
+  {% endif %}
+  <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
