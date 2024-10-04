@@ -85,3 +85,39 @@ button {
 .logout-button:hover {
   background-color: #d32f2f;
 }
+
+table {
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-family: sans-serif;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+thead {
+  background-color: #333;
+}
+
+thead tr {
+  color: #fff;
+}
+
+tr {
+  color: #333;
+  text-align: left;
+}
+
+th, td {
+padding: 12px 15px;
+}
+
+tbody tr:nth-of-type(even) {
+  background-color: #f3f3f3;
+}
+
+.delete {
+  background-color: #f44336;
+}
+
+.delete:hover {
+  background-color: #d32f2f;
+}

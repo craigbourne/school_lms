@@ -51,7 +51,6 @@ timetables_db = [mock_timetable]
 print(timetables_db)
 lessons_db = mock_lessons
 
-
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -287,6 +286,21 @@ async def lesson_edit(
                 for j, timetable_lesson in enumerate(timetable.lessons):
                     if timetable_lesson.id == lesson_id:
                         timetable.lessons[j] = lessons_db[i]
+            return RedirectResponse(url="/lessons/", status_code=303)
+    
+    raise HTTPException(status_code=404, detail="Lesson not found")
+
+@app.post("/lessons/{lesson_id}/delete")
+async def lesson_delete(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
+    
+    for i, lesson in enumerate(lessons_db):
+        if lesson.id == lesson_id:
+            lessons_db.pop(i)
+            # Remove lesson from timetables
+            for timetable in timetables_db:
+                timetable.lessons = [l for l in timetable.lessons if l.id != lesson_id]
             return RedirectResponse(url="/lessons/", status_code=303)
     
     raise HTTPException(status_code=404, detail="Lesson not found")

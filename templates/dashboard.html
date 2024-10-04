@@ -16,14 +16,16 @@
     {% if timetable %}
     <h3>Your Timetable for the Week of {{ timetable.week_start }}</h3>
     <table>
-      <tr>
-        <th>Day</th>
-        <th>Subject</th>
-        <th>Teacher</th>
-        <th>Classroom</th>
-        <th>Start Time</th>
-        <th>End Time</th>
-      </tr>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Subject</th>
+          <th>Teacher</th>
+          <th>Classroom</th>
+          <th>Start Time</th>
+          <th>End Time</th>
+        </tr>
+      </thead>
       {% for lesson in timetable.lessons %}
       <tr>
         <td>{{ lesson.day_of_week }}</td>
