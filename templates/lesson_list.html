@@ -32,12 +32,14 @@
         <td>{{ lesson.day_of_week }}</td>
         <td>{{ lesson.start_time }}</td>
         <td>{{ lesson.end_time }}</td>
+
         {% if current_user.role in ['admin', 'teacher'] %}
         <td>
-          <!-- Need add edit and delete links here later -->
-          Edit | Delete
+          <!-- Need add delete link still -->
+          <a href="{{ url_for('lesson_edit_form', lesson_id=lesson.id) }}">Edit</a> | Delete
         </td>
         {% endif %}
+
       </tr>
       {% endfor %}
     </tbody>
