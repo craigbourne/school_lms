@@ -305,6 +305,26 @@ async def lesson_delete(lesson_id: int, current_user: UserInDB = Depends(get_cur
     
     raise HTTPException(status_code=404, detail="Lesson not found")
 
+from datetime import date, timedelta
+
+@app.get("/timetable/")
+async def view_timetable(request: Request, week_start: date = None, current_user: UserInDB = Depends(get_current_user)):
+    if week_start is None:
+        # If no week is specified, use the current week
+        week_start = date.today() - timedelta(days=date.today().weekday())
+    
+    week_end = week_start + timedelta(days=6)
+    
+    # Find the timetable for the current user and specified week
+    timetable = next((t for t in timetables_db if t.user_id == current_user.id and t.week_start == week_start), None)
+    
+    if not timetable:
+        # If no timetable exists, create an empty one
+        timetable = Timetable(id=len(timetables_db) + 1, user_id=current_user.id, week_start=week_start, week_end=week_end, lessons=[])
+        timetables_db.append(timetable)
+    
+    return templates.TemplateResponse("timetable_view.html", {"request": request, "timetable": timetable, "current_user": current_user})
+
 @app.get("/timetable/{user_id}", response_model=Timetable)
 async def get_timetable(user_id: int, current_user: UserInDB = Depends(get_current_user)):
     # Need to fetch actual timetable from database

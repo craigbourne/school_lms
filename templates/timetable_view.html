@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Timetable</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+  <h1>Weekly Timetable</h1>
+  <h2>Week of {{ timetable.week_start.strftime('%B %d, %Y') }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Monday</th>
+        <th>Tuesday</th>
+        <th>Wednesday</th>
+        <th>Thursday</th>
+        <th>Friday</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hour in range(9, 15) %} <!-- Assuming school hours from 9am to 3pm -->
+      <tr>
+        <td>{{ "{:02d}:00".format(hour) }}</td>
+        {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
+        <td>
+          {% for lesson in timetable.lessons %}
+          {% if lesson.day_of_week == day and lesson.start_time.hour == hour %}
+          <div class="lesson">
+            <strong>{{ lesson.subject }}</strong><br>
+            {{ lesson.teacher }}<br>
+            {{ lesson.classroom }}<br>
+            {{ lesson.start_time.strftime('%H:%M') }} - {{ lesson.end_time.strftime('%H:%M') }}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</body>
+</html>

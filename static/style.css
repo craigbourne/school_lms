@@ -88,9 +88,11 @@ button {
 
 table {
   border-collapse: collapse;
-  margin: 25px 0;
   font-family: sans-serif;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+  max-width: 70%;
+  margin: 2rem;
+  width: 100%;
 }
 
 thead {
@@ -107,7 +109,9 @@ tr {
 }
 
 th, td {
-padding: 12px 15px;
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
 }
 
 tbody tr:nth-of-type(even) {
@@ -120,4 +124,11 @@ tbody tr:nth-of-type(even) {
 
 .delete:hover {
   background-color: #d32f2f;
+}
+
+.lesson {
+  background-color: #e6f3ff;
+  padding: 5px;
+  margin-bottom: 5px;
+  border-radius: 3px;
 }
