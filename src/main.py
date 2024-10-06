@@ -47,8 +47,21 @@ mock_timetable = Timetable(
     ]
 )
 
-timetables_db = [mock_timetable]
-print(timetables_db)
+def create_mock_timetables():
+    timetables = []
+    for user in users_db:
+        timetable = Timetable(
+            id=len(timetables) + 1,
+            user_id=user.id,
+            week_start=date(2023, 5, 1),
+            week_end=date(2023, 5, 7),
+            lessons=lessons_db.copy()  # All users see all lessons for now
+        )
+        timetables.append(timetable)
+    return timetables
+
+timetables_db = create_mock_timetables()
+
 lessons_db = mock_lessons
 
 @app.get("/")
@@ -58,6 +71,8 @@ async def home(request: Request):
 @app.get("/register")
 async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
+
+from datetime import date, timedelta
 
 @app.post("/register")
 async def register(
@@ -88,6 +103,17 @@ async def register(
         role=role
     )
     users_db.append(new_user)
+
+    # Create a timetable for the new user
+    new_timetable = Timetable(
+        id=len(timetables_db) + 1,
+        user_id=new_user.id,
+        week_start=date.today() - timedelta(days=date.today().weekday()),
+        week_end=date.today() + timedelta(days=6),
+        lessons=lessons_db.copy()  # New users see all lessons initially
+    )
+    timetables_db.append(new_timetable)
+
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/login")
@@ -138,7 +164,6 @@ async def logout(request: Request):
 
 @app.get("/dashboard")
 async def dashboard(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    print(f"Dashboard accessed by user: {current_user.username if current_user else 'No user'}")  # Debug print
     if not current_user:
         return RedirectResponse(url="/login")
     user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
@@ -146,7 +171,13 @@ async def dashboard(request: Request, current_user: UserInDB = Depends(get_curre
 
 @app.get("/lessons/")
 async def list_lessons(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": lessons_db, "current_user": current_user})
+    if current_user.role in ['admin', 'teacher']:
+        visible_lessons = lessons_db
+    else:
+        user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
+        visible_lessons = user_timetable.lessons if user_timetable else []
+    
+    return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": visible_lessons, "current_user": current_user})
 
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
 async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
@@ -316,7 +347,7 @@ async def view_timetable(request: Request, week_start: date = None, current_user
     week_end = week_start + timedelta(days=6)
     
     # Find the timetable for the current user and specified week
-    timetable = next((t for t in timetables_db if t.user_id == current_user.id and t.week_start == week_start), None)
+    timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
     
     if not timetable:
         # If no timetable exists, create an empty one
