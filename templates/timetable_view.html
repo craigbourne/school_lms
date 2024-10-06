@@ -21,7 +21,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for hour in range(9, 15) %} <!-- Assuming school hours from 9am to 3pm -->
+      {% for hour in range(9, 16) %} <!-- School hours from 9 AM to 3 PM -->
       <tr>
         <td>{{ "{:02d}:00".format(hour) }}</td>
         {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}

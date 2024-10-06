@@ -18,14 +18,17 @@ main {
   flex-grow: 1;
   padding: 2rem;
   display: flex;
-  justify-content: space-around;
+  flex-direction: column;
+  align-items: center;
 }
 
 section {
   background-color: #f4f4f4;
   border-radius: 5px;
   padding: 20px;
-  width: 45%;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 2rem;
 }
 
 form div {
@@ -39,9 +42,12 @@ label {
 
 input[type="text"],
 input[type="password"],
-input[type="email"] {
+input[type="email"],
+input[type="time"],
+select {
   width: 100%;
   padding: 5px;
+  box-sizing: border-box;
 }
 
 button {
@@ -71,27 +77,12 @@ button {
   color: #f44336;
 }
 
-.logout-button {
-  display: inline-block;
-  padding: 10px 20px;
-  background-color: #f44336;
-  color: white;
-  text-decoration: none;
-  border-radius: 5px;
-  font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.logout-button:hover {
-  background-color: #d32f2f;
-}
-
 table {
   border-collapse: collapse;
   font-family: sans-serif;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-  max-width: 70%;
-  margin: 2rem;
+  max-width: 100%;
+  margin: 2rem 0;
   width: 100%;
 }
 
@@ -108,7 +99,8 @@ tr {
   text-align: left;
 }
 
-th, td {
+th,
+td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
@@ -131,4 +123,74 @@ tbody tr:nth-of-type(even) {
   padding: 5px;
   margin-bottom: 5px;
   border-radius: 3px;
+}
+
+/* New styles for buttons/links */
+.action-button {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #4CAF50;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  margin: 5px;
+}
+
+.action-button:hover {
+  background-color: #45a049;
+}
+
+.logout-button {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #f44336;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  margin: 5px;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
+}
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+/* Responsive styles */
+@media screen and (max-width: 600px) {
+  main {
+    padding: 1rem;
+  }
+
+  section {
+    width: 100%;
+    padding: 15px;
+  }
+
+  table {
+    font-size: 14px;
+  }
+
+  th,
+  td {
+    padding: 5px;
+  }
+
+  .dashboard-actions {
+    flex-direction: column;
+  }
+
+  .action-button {
+    width: 100%;
+    margin: 5px 0;
+  }
 }

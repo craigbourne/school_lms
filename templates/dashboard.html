@@ -3,48 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - School LMS</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
 </head>
 <body>
-  <header>
+  <div class="dashboard-container">
     <h1>Welcome to School LMS Dashboard</h1>
-  </header>
-  <main>
-    <h2>Welcome, {{ user.username }}!</h2>
-    <p>Role: {{ user.role }}</p>
+    <div class="user-info">
+      <h2>Welcome, {{ user.username }}!</h2>
+      <p>Role: {{ user.role }}</p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="{{ url_for('view_timetable') }}" class="action-button">View Weekly Timetable</a>
+      <a href="{{ url_for('list_lessons') }}" class="action-button">View Lessons</a>
+      {% if user.role in ['admin', 'teacher'] %}
+      <a href="{{ url_for('lesson_add_form') }}" class="action-button">Add New Lesson</a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="action-button logout-button ">Logout</a>
+    </div>
     {% if timetable %}
-    <h3>Your Timetable for the Week of {{ timetable.week_start }}</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Day</th>
-          <th>Subject</th>
-          <th>Teacher</th>
-          <th>Classroom</th>
-          <th>Start Time</th>
-          <th>End Time</th>
-        </tr>
-      </thead>
-      {% for lesson in timetable.lessons %}
-      <tr>
-        <td>{{ lesson.day_of_week }}</td>
-        <td>{{ lesson.subject }}</td>
-        <td>{{ lesson.teacher }}</td>
-        <td>{{ lesson.classroom }}</td>
-        <td>{{ lesson.start_time }}</td>
-        <td>{{ lesson.end_time }}</td>
-      </tr>
-      {% endfor %}
-    </table>
+    <div class="timetable-preview">
+      <h3>Your Timetable for the Week of {{ timetable.week_start }}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Subject</th>
+            <th>Teacher</th>
+            <th>Classroom</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lesson in timetable.lessons %}
+          <tr>
+            <td>{{ lesson.day_of_week }}</td>
+            <td>{{ lesson.subject }}</td>
+            <td>{{ lesson.teacher }}</td>
+            <td>{{ lesson.classroom }}</td>
+            <td>{{ lesson.start_time }} - {{ lesson.end_time }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <p>No timetable available.</p>
     {% endif %}
-    <a href="{{ url_for('view_timetable') }}">View Weekly Timetable</a>
-    <a href="{{ url_for('list_lessons') }}">View Lessons</a>
-    <div>
-      <a href="/logout" class="logout-button">Logout</a>
-    </div>
-  </main>
+  </div>
 </body>
 </html>
