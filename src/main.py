@@ -1,12 +1,14 @@
-from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user,
-    get_user, users_db, authenticate_user, pwd_context, get_password_hash)
+from auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, decode_access_token
 from datetime import date, datetime, time, timedelta
 from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from models import Lesson, LessonCreate, LessonBase, Timetable, TimetableCreate, UserInDB
+from jose import JWTError
+from models import UserInDB, Lesson, LessonCreate, Timetable, TimetableCreate
+from passlib.context import CryptContext
+import random
 from token_blacklist import add_to_blacklist
 from typing import List
 
@@ -18,7 +20,44 @@ templates = Jinja2Templates(directory="templates")
 # Mount a static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def get_user(username: str):
+    for user in users_db:
+        if user.username == username:
+            return user
+    return None
+
+def authenticate_user(username: str, password: str):
+    user = get_user(username)
+    if not user or not verify_password(password, user.hashed_password):
+        return None
+    return user
+
+async def get_current_user(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    
+    try:
+        token = token.split("Bearer ")[1]
+        username = decode_access_token(token)
+        user = get_user(username)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user")
+        return user
+    except (IndexError, JWTError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    
 
 # track login attempts
 login_attempts = {}
@@ -31,9 +70,9 @@ timetables_db: List[Timetable] = []
 
 # Mock data
 mock_lessons = [
-    Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:00", "%H:%M").time()),
-    Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=datetime.strptime("10:30", "%H:%M").time(), end_time=datetime.strptime("11:30", "%H:%M").time()),
-    Lesson(id=3, subject="Science", teacher="Dr. Brown", classroom="Lab 1", day_of_week="Tuesday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:30", "%H:%M").time()),
+    Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:00", "%H:%M").time(), year_group=7),
+    Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=datetime.strptime("10:30", "%H:%M").time(), end_time=datetime.strptime("11:30", "%H:%M").time(), year_group=8),
+    Lesson(id=3, subject="Science", teacher="Dr. Brown", classroom="Lab 1", day_of_week="Tuesday", start_time=datetime.strptime("09:00", "%H:%M").time(), end_time=datetime.strptime("10:30", "%H:%M").time(), year_group=9),
 ]
 
 mock_timetable = Timetable(
@@ -42,27 +81,87 @@ mock_timetable = Timetable(
     week_start=date(2023, 5, 1),
     week_end=date(2023, 5, 7),
     lessons=[
-        Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=time(9, 0), end_time=time(10, 0)),
-        Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=time(10, 30), end_time=time(11, 30)),
+        Lesson(id=1, subject="Math", teacher="Mr. Smith", classroom="Room 101", day_of_week="Monday", start_time=time(9, 0), end_time=time(10, 0), year_group=7),
+        Lesson(id=2, subject="English", teacher="Ms. Johnson", classroom="Room 102", day_of_week="Monday", start_time=time(10, 30), end_time=time(11, 30), year_group=8),
     ]
 )
 
+def create_mock_teachers():
+    subjects = ["Math", "English", "Science", "History", "Geography", "Art", "Music", "Physical Education"]
+    teachers = []
+    for i in range(2):
+        teacher_data = {
+            "id": i + 1,
+            "username": f"teacher{i+1}",
+            "email": f"teacher{i+1}@school.com",
+            "hashed_password": get_password_hash("password"),  # Use a common password for testing
+            "role": "teacher",
+            "subjects": random.sample(subjects, 2)
+        }
+        teacher = UserInDB(**teacher_data)
+        teachers.append(teacher)
+    return teachers
+
+def create_mock_students():
+    students = []
+    for i in range(2):
+        student_data = {
+            "id": i + 3,
+            "username": f"student{i+1}",
+            "email": f"student{i+1}@school.com",
+            "hashed_password": get_password_hash("password"),
+            "role": "student",
+            "year_group": random.randint(7, 11)
+        }
+        student = UserInDB(**student_data)
+        students.append(student)
+    return students
+
+def create_mock_lessons():
+    teachers = create_mock_teachers()
+    lessons = []
+    for i in range(10):  # Create 10 lessons
+        teacher = random.choice(teachers)
+        subject = random.choice(teacher.subjects)
+        lessons.append(Lesson(
+            id=i + 1,
+            subject=subject,
+            teacher=teacher.username,
+            classroom=f"Room {random.randint(101, 120)}",
+            day_of_week=random.choice(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]),
+            start_time=time(hour=random.randint(9, 15)),
+            end_time=time(hour=random.randint(10, 16)),
+            year_group=random.randint(7, 11)
+        ))
+        print(f"Created lesson: {subject} by {teacher.username}")
+    return lessons
+
 def create_mock_timetables():
+    users = create_mock_teachers() + create_mock_students()
+    lessons = create_mock_lessons()
     timetables = []
-    for user in users_db:
+    for user in users:
+        if user.role == "student":
+            user_lessons = [lesson for lesson in lessons if lesson.year_group == user.year_group]
+        elif user.role == "teacher":
+            user_lessons = [lesson for lesson in lessons if lesson.teacher == user.username]
+        else:  # admin sees all lessons
+            user_lessons = lessons
+        
         timetable = Timetable(
             id=len(timetables) + 1,
             user_id=user.id,
-            week_start=date(2023, 5, 1),
-            week_end=date(2023, 5, 7),
-            lessons=lessons_db.copy()  # All users see all lessons for now
+            week_start=date.today() - timedelta(days=date.today().weekday()),
+            week_end=date.today() + timedelta(days=6),
+            lessons=user_lessons
         )
         timetables.append(timetable)
     return timetables
 
+# Initialize mock data
+users_db = create_mock_teachers() + create_mock_students()
+lessons_db = create_mock_lessons()
 timetables_db = create_mock_timetables()
-
-lessons_db = mock_lessons
 
 @app.get("/")
 async def home(request: Request):
@@ -118,43 +217,27 @@ async def register(
 
 @app.post("/login")
 async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
+    print(f"Login attempt for user: {username}")
     user = authenticate_user(username, password)
     if user is None:
-        # Increment failed login attempts
-        login_attempts[username] = login_attempts.get(username, 0) + 1
-        
-        if login_attempts[username] >= 5:
-            # Lock out user after 5 failed attempts
-            return templates.TemplateResponse(
-                "login.html",
-                {"request": request, "error": "Account locked. Please contact support."},
-                status_code=status.HTTP_403_FORBIDDEN
-            )
-        
-        return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": f"Incorrect username or password. {5 - login_attempts[username]} attempts remaining."},
-            status_code=status.HTTP_401_UNAUTHORIZED
+        print(f"Authentication failed for user: {username}")
+        # Your existing error handling code...
+    else:
+        print(f"Authentication successful for user: {username}")
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
         )
-    
-    # Reset login attempts on successful login
-    login_attempts.pop(username, None)
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    response = RedirectResponse(url="/dashboard", status_code=303)
-    response.set_cookie(
-        key="access_token", 
-        value=f"Bearer {access_token}",  # Add 'Bearer ' prefix back
-        httponly=True,
-        max_age=1800,
-        expires=1800,
-        path="/"
-    )
-    print(f"Setting access_token cookie: Bearer {access_token}")  # Debug print
-    return response
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(
+            key="access_token", 
+            value=f"Bearer {access_token}",
+            httponly=True,
+            max_age=1800,
+            expires=1800,
+        )
+        print(f"Setting access_token cookie: Bearer {access_token}")
+        return response
 
 @app.get("/logout")
 async def logout(request: Request):
@@ -164,8 +247,6 @@ async def logout(request: Request):
 
 @app.get("/dashboard")
 async def dashboard(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    if not current_user:
-        return RedirectResponse(url="/login")
     user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "timetable": user_timetable})
 
@@ -187,17 +268,12 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
     raise HTTPException(status_code=404, detail="Lesson not found")
 
 @app.post("/lessons/", response_model=Lesson)
-async def create_lesson(lesson: LessonCreate, timetable_id: int, current_user: UserInDB = Depends(get_current_user)):
+async def create_lesson(lesson: LessonCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can create lessons")
     
-    timetable = next((t for t in timetables_db if t.id == timetable_id), None)
-    if not timetable:
-        raise HTTPException(status_code=404, detail="Timetable not found")
-    
     new_lesson = Lesson(id=len(lessons_db) + 1, **lesson.dict())
     lessons_db.append(new_lesson)
-    timetable.lessons.append(new_lesson)
     return new_lesson
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
