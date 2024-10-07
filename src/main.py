@@ -1,11 +1,11 @@
-from auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, decode_access_token
+from auth import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, create_access_token, decode_access_token, get_current_user, SECRET_KEY, Token
 from datetime import date, datetime, time, timedelta
 from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from jose import JWTError
+from jose import jwt, JWTError
 from models import UserInDB, Lesson, LessonCreate, Timetable, TimetableCreate
 from passlib.context import CryptContext
 import random
@@ -48,16 +48,21 @@ async def get_current_user(request: Request):
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     
+    scheme, _, param = token.partition(" ")
+    if scheme.lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication scheme")
+    
     try:
-        token = token.split("Bearer ")[1]
-        username = decode_access_token(token)
+        payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         user = get_user(username)
         if user is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
         return user
-    except (IndexError, JWTError):
+    except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    
 
 # track login attempts
 login_attempts = {}
@@ -216,28 +221,17 @@ async def register(
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/login")
-async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
-    print(f"Login attempt for user: {username}")
-    user = authenticate_user(username, password)
-    if user is None:
-        print(f"Authentication failed for user: {username}")
-        # Your existing error handling code...
-    else:
-        print(f"Authentication successful for user: {username}")
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
-        response = RedirectResponse(url="/dashboard", status_code=303)
-        response.set_cookie(
-            key="access_token", 
-            value=f"Bearer {access_token}",
-            httponly=True,
-            max_age=1800,
-            expires=1800,
-        )
-        print(f"Setting access_token cookie: Bearer {access_token}")
-        return response
+async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+    token_response = await login_for_access_token(form_data)
+    response = RedirectResponse(url="/dashboard", status_code=303)
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token_response['access_token']}",
+        httponly=True,
+        max_age=1800,
+        expires=1800,
+    )
+    return response
 
 @app.get("/logout")
 async def logout(request: Request):
