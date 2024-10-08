@@ -35,6 +35,15 @@
           </select>
         </div>
         <div>
+          <label for="year_group">Year Group (for students):</label>
+          <select id="year_group" name="year_group">
+            <option value="">Select Year Group</option>
+            {% for year in range(7, 12) %}
+            <option value="{{ year }}">Year {{ year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
           <button type="submit">Register</button>
         </div>
       </form>

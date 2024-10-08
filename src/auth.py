@@ -7,6 +7,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from typing import Optional
 
+users_db = []
 
 SECRET_KEY = "your-secret-key"  # Replace with a real secret key in production
 ALGORITHM = "HS256"
@@ -72,6 +73,8 @@ def decode_access_token(token: str):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 def get_user(username: str) -> Optional[UserInDB]:
-    # Implementation to get user from database
-    pass
+    for user in users_db:
+        if user.username == username:
+            return user
+    return None
 
