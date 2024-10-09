@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
+from typing import Optional
+
 from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from models import UserInDB
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from typing import Optional
+
+from models import UserInDB
 
 users_db = []
 
@@ -44,22 +46,37 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme), access_token: str = Cookie(None)):
+async def get_current_user(
+  token: str = Depends(oauth2_scheme),
+  access_token: str = Cookie(None)
+  ):
     if not token and access_token:
-        token = access_token.split()[1] if access_token.startswith("Bearer ") else access_token
+        token = (access_token.split()[1] if access_token.startswith("Bearer ")
+                else access_token)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="Not authenticated"
+        )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+              )
+    except JWTError as exc:
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="Invalid token"
+        ) from exc
     user = get_user(username)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="User not found"
+        )
     return user
 
 def decode_access_token(token: str):
@@ -67,14 +84,19 @@ def decode_access_token(token: str):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+              status_code=status.HTTP_401_UNAUTHORIZED,
+              detail="Invalid token"
+            )
         return username
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except JWTError as exc:
+        raise HTTPException(
+              status_code=status.HTTP_401_UNAUTHORIZED,
+              detail="Invalid token"
+            ) from exc
 
 def get_user(username: str) -> Optional[UserInDB]:
     for user in users_db:
         if user.username == username:
             return user
     return None
-
