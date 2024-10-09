@@ -30,12 +30,24 @@
       </select>
     </div>
     <div>
-      <label for="start_time">Start Time:</label>
-      <input type="time" id="start_time" name="start_time" value="{{ lesson.start_time }}" required>
+      <select name="start_time" required>
+        <option value="09:00">09:00</option>
+        <option value="10:00">10:00</option>
+        <option value="11:00">11:00</option>
+        <option value="12:00">12:00</option>
+        <option value="13:00">13:00</option>
+        <option value="14:00">14:00</option>
+      </select>
     </div>
     <div>
-      <label for="end_time">End Time:</label>
-      <input type="time" id="end_time" name="end_time" value="{{ lesson.end_time }}" required>
+      <label for="year_group">Year Group:</label>
+      <select name="year_group" id="year_group" required>
+        <option value="7" {% if lesson.year_group==7 %}selected{% endif %}>Year 7</option>
+        <option value="8" {% if lesson.year_group==8 %}selected{% endif %}>Year 8</option>
+        <option value="9" {% if lesson.year_group==9 %}selected{% endif %}>Year 9</option>
+        <option value="10" {% if lesson.year_group==10 %}selected{% endif %}>Year 10</option>
+        <option value="11" {% if lesson.year_group==11 %}selected{% endif %}>Year 11</option>
+      </select>
     </div>
     <button type="submit">Update Lesson</button>
   </form>

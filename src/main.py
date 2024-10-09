@@ -12,12 +12,9 @@ import random
 from token_blacklist import add_to_blacklist
 from typing import List, Optional
 
-# Initialise FastAPI application
-app = FastAPI()
-# Set up Jinja2 templates
-templates = Jinja2Templates(directory="templates")
-# Mount a static files directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app = FastAPI() # Initialise FastAPI application
+templates = Jinja2Templates(directory="templates") # Set up Jinja2 HTML templates
+app.mount("/static", StaticFiles(directory="static"), name="static") # Mount a static files directory
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -25,6 +22,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # Initialise empty databases
 users_db = [] # Simulated database for users
 lessons_db = [] # Simulated database for lessons
+global_lessons_db = []  # Initialize global_lessons_db as an empty list
 timetables_db: List[Timetable] = [] # Simulated database for timetable
 
 login_attempts = {} # track login attempts
@@ -74,13 +72,23 @@ async def get_current_user(request: Request):
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
+def check_lesson_conflict(new_lesson, user_id):
+    timetable = next((t for t in timetables_db if t.user_id == user_id), None)
+    if timetable:
+        for lesson in timetable.lessons:
+            if (lesson.day_of_week == new_lesson.day_of_week and
+                lesson.start_time == new_lesson.start_time and
+                lesson.teacher == new_lesson.teacher):  # Only check conflicts for the same teacher
+                return True
+    return False
+
 # Mock data creation functions
 def create_test_accounts():
     global users_db
     test_accounts = [
-        {"username": "admin", "password": "adminpass", "role": "admin"},
-        {"username": "teacher", "password": "teacherpass", "role": "teacher"},
-        {"username": "student", "password": "studentpass", "role": "student", "year_group": 9}
+        {"username": "admin", "password": "adminpass", "role": "admin", "email": "admin@school.com"},
+        {"username": "teacher1", "password": "teacherpass", "role": "teacher", "email": "teacher1@school.com"},
+        {"username": "student1", "password": "studentpass", "role": "student", "year_group": 9, "email": "student1@school.com"}
     ]
     for account in test_accounts:
         if not any(user.username == account["username"] for user in users_db):
@@ -88,7 +96,7 @@ def create_test_accounts():
             new_user = UserInDB(
                 id=len(users_db) + 1,
                 username=account["username"],
-                email=f"{account['username']}@test.com",
+                email=account["email"],
                 hashed_password=hashed_password,
                 role=account["role"],
                 year_group=account.get("year_group")
@@ -100,12 +108,12 @@ def create_test_accounts():
 def create_mock_teachers():
     subjects = ["Math", "English", "Science", "History", "Geography", "Art", "Music", "Physical Education"]
     teachers = []
-    for i in range(2):
+    for i in range(5):  # Create 5 teachers
         teacher_data = {
             "id": i + 1,
             "username": f"teacher{i+1}",
             "email": f"teacher{i+1}@school.com",
-            "hashed_password": get_password_hash("password"),  # Use a common password for testing
+            "hashed_password": get_password_hash("password"),
             "role": "teacher",
             "subjects": random.sample(subjects, 2)
         }
@@ -129,37 +137,55 @@ def create_mock_students():
     return students
 
 def create_mock_lessons():
+    global global_lessons_db
     teachers = create_mock_teachers()
-    lessons = []
     subjects = ["Math", "English", "Science", "History", "Geography", "Art", "Music", "Physical Education"]
-    for i in range(50):  # Create 50 lessons
-        teacher = random.choice(teachers)
-        subject = random.choice(subjects)
-        year_group = random.randint(7, 11)
-        lessons.append(Lesson(
-            id=i + 1,
-            subject=subject,
-            teacher=teacher.username,
-            classroom=f"Room {random.randint(101, 120)}",
-            day_of_week=random.choice(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]),
-            start_time=time(hour=random.randint(9, 15), minute=random.choice([0, 30])),
-            end_time=time(hour=random.randint(10, 16), minute=random.choice([0, 30])),
-            year_group=year_group
-        ))
-        print(f"Created lesson: {subject} for year {year_group} by {teacher.username}")
-    return lessons
+    lesson_id = 1
+    lesson_slots = {day: {hour: {year: None for year in range(7, 12)} for hour in range(9, 15)} for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]}
+    
+    global_lessons_db = []  # Reset global_lessons_db
+    
+    for teacher in teachers:
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]:
+            for hour in range(9, 15):
+                if random.random() < 0.7:  # 70% chance of creating a lesson
+                    subject = random.choice(subjects)
+                    available_years = [year for year, lesson in lesson_slots[day][hour].items() if lesson is None]
+                    if not available_years:
+                        continue
+                    year_group = random.choice(available_years)
+                    new_lesson = Lesson(
+                        id=lesson_id,
+                        subject=subject,
+                        teacher=teacher.username,
+                        classroom=f"Room {random.randint(101, 120)}",
+                        day_of_week=day,
+                        start_time=time(hour=hour),
+                        end_time=time(hour=hour+1),
+                        year_group=year_group
+                    )
+                    global_lessons_db.append(new_lesson)
+                    lesson_slots[day][hour][year_group] = new_lesson
+                    lesson_id += 1
+    
+    return global_lessons_db
 
 def create_mock_timetables():
-    users = create_mock_teachers() + create_mock_students()
-    lessons = create_mock_lessons()
+    global global_lessons_db
+    users = users_db
     timetables = []
+    
+    if global_lessons_db is None:
+        global_lessons_db = []  # Initialise if it's None
+    
     for user in users:
+        user_lessons = []
         if user.role == "student":
-            user_lessons = [lesson for lesson in lessons if lesson.year_group == user.year_group]
+            user_lessons = [lesson for lesson in global_lessons_db if lesson.year_group == user.year_group]
         elif user.role == "teacher":
-            user_lessons = [lesson for lesson in lessons if lesson.teacher == user.username]
+            user_lessons = [lesson for lesson in global_lessons_db if lesson.teacher == user.username]
         else:  # admin sees all lessons
-            user_lessons = lessons
+            user_lessons = global_lessons_db.copy()  # Use a copy to avoid modifying the original list
         
         timetable = Timetable(
             id=len(timetables) + 1,
@@ -169,12 +195,13 @@ def create_mock_timetables():
             lessons=user_lessons
         )
         timetables.append(timetable)
+    
     return timetables
 
 # Initialise mock data
 create_test_accounts()
 users_db.extend(create_mock_teachers() + create_mock_students())
-lessons_db = create_mock_lessons()
+global_lessons_db = create_mock_lessons()
 timetables_db = create_mock_timetables()
 
 import auth
@@ -282,8 +309,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 # Dashboard and user info routes
 @app.get("/dashboard")
 async def dashboard(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "timetable": user_timetable})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
 
 @app.get("/users/me")
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
@@ -293,20 +319,25 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
 # Lesson routes 
 @app.get("/lessons/")
 async def list_lessons(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role in ['admin', 'teacher']:
-        visible_lessons = lessons_db
+    if current_user.role == 'admin':
+        visible_lessons = global_lessons_db
+    elif current_user.role == 'teacher':
+        visible_lessons = [lesson for lesson in global_lessons_db if lesson.teacher == current_user.username]
     else:
-        user_timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
-        visible_lessons = user_timetable.lessons if user_timetable else []
+        visible_lessons = [lesson for lesson in global_lessons_db if lesson.year_group == current_user.year_group]
     
-    return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": visible_lessons, "current_user": current_user})
+    # Sort lessons by day of week and start time
+    day_order = {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4}
+    sorted_lessons = sorted(visible_lessons, key=lambda x: (day_order[x.day_of_week], x.start_time))
+    
+    return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": sorted_lessons, "current_user": current_user})
 
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
 async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
-    for lesson in lessons_db:
-        if lesson.id == lesson_id:
-            return lesson
-    raise HTTPException(status_code=404, detail="Lesson not found")
+    lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    return lesson
 
 @app.post("/lessons/", response_model=Lesson)
 async def create_lesson(lesson: LessonCreate, current_user: UserInDB = Depends(get_current_user)):
@@ -316,15 +347,17 @@ async def create_lesson(lesson: LessonCreate, current_user: UserInDB = Depends(g
     if current_user.role == "teacher" and lesson.teacher != current_user.username:
         raise HTTPException(status_code=403, detail="Teachers can only create lessons for themselves")
     
-    new_lesson = Lesson(id=len(lessons_db) + 1, **lesson.dict())
-    lessons_db.append(new_lesson)
+    if check_lesson_conflict(lesson, current_user.id):
+        raise HTTPException(status_code=400, detail="You already have a lesson scheduled at this time")
+
+    new_lesson = Lesson(id=len(global_lessons_db) + 1, **lesson.dict())
+    global_lessons_db.append(new_lesson)
     
     # Update timetables
     for timetable in timetables_db:
-        if (timetable.week_start.weekday() == new_lesson.day_of_week and
-            (current_user.role == "admin" or
+        if (current_user.role == "admin" or
             (current_user.role == "teacher" and new_lesson.teacher == current_user.username) or
-            (timetable.user_id == current_user.id and new_lesson.year_group == current_user.year_group))):
+            (timetable.user_id == current_user.id and new_lesson.year_group == current_user.year_group)):
             timetable.lessons.append(new_lesson)
     
     return new_lesson
@@ -341,6 +374,9 @@ async def update_lesson(lesson_id: int, updated_lesson: LessonCreate, current_us
     if current_user.role == "teacher" and lessons_db[lesson_index].teacher != current_user.username:
         raise HTTPException(status_code=403, detail="Teachers can only update their own lessons")
     
+    if check_lesson_conflict(lesson, current_user.id):
+        raise HTTPException(status_code=400, detail="This lesson conflicts with an existing lesson")
+
     updated_lesson_dict = updated_lesson.dict()
     updated_lesson_dict['id'] = lesson_id
     lessons_db[lesson_index] = Lesson(**updated_lesson_dict)
@@ -377,31 +413,30 @@ async def lesson_add_form(request: Request, current_user: UserInDB = Depends(get
 async def lesson_add(
     request: Request,
     subject: str = Form(...),
-    teacher: str = Form(...),
     classroom: str = Form(...),
     day_of_week: str = Form(...),
     start_time: str = Form(...),
-    end_time: str = Form(...),
-    timetable_id: int = Form(...),
+    year_group: int = Form(...),
     current_user: UserInDB = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can add lessons")
     
-    # Convert time strings to time objects
+    # Convert time string to time object
     start_time_obj = datetime.strptime(start_time, "%H:%M").time()
-    end_time_obj = datetime.strptime(end_time, "%H:%M").time()
+    end_time_obj = (datetime.combine(date.today(), start_time_obj) + timedelta(hours=1)).time()
     
     new_lesson = LessonCreate(
         subject=subject,
-        teacher=teacher,
+        teacher=current_user.username,  # Use the current user's username
         classroom=classroom,
         day_of_week=day_of_week,
         start_time=start_time_obj,
-        end_time=end_time_obj
+        end_time=end_time_obj,
+        year_group=year_group
     )
     
-    created_lesson = await create_lesson(new_lesson, timetable_id, current_user)
+    created_lesson = await create_lesson(new_lesson, current_user)
     return RedirectResponse(url="/lessons/", status_code=303)
 
 @app.get("/lessons/{lesson_id}/edit")
@@ -409,8 +444,8 @@ async def lesson_edit_form(lesson_id: int, request: Request, current_user: UserI
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can edit lessons")
     
-    lesson = next((lesson for lesson in lessons_db if lesson.id == lesson_id), None)
-    if not lesson:
+    lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
+    if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     
     return templates.TemplateResponse("lesson_edit.html", {"request": request, "lesson": lesson})
@@ -420,76 +455,87 @@ async def lesson_edit(
     lesson_id: int,
     request: Request,
     subject: str = Form(...),
-    teacher: str = Form(...),
     classroom: str = Form(...),
     day_of_week: str = Form(...),
     start_time: str = Form(...),
-    end_time: str = Form(...),
+    year_group: int = Form(...),
     current_user: UserInDB = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can edit lessons")
     
-    # Convert time strings to time objects
+    lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    if current_user.role == "teacher" and lesson.teacher != current_user.username:
+        raise HTTPException(status_code=403, detail="Teachers can only update their own lessons")
+    
+    # Convert time string to time object
     start_time_obj = datetime.strptime(start_time, "%H:%M").time()
-    end_time_obj = datetime.strptime(end_time, "%H:%M").time()
+    end_time_obj = (datetime.combine(date.today(), start_time_obj) + timedelta(hours=1)).time()
     
-    updated_lesson = LessonCreate(
-        subject=subject,
-        teacher=teacher,
-        classroom=classroom,
-        day_of_week=day_of_week,
-        start_time=start_time_obj,
-        end_time=end_time_obj
-    )
+    # Update the lesson
+    lesson.subject = subject
+    lesson.classroom = classroom
+    lesson.day_of_week = day_of_week
+    lesson.start_time = start_time_obj
+    lesson.end_time = end_time_obj
+    lesson.year_group = year_group
     
-    # Find the lesson in the database and update it
-    for i, lesson in enumerate(lessons_db):
-        if lesson.id == lesson_id:
-            lessons_db[i] = Lesson(id=lesson_id, **updated_lesson.dict())
-            # Update the lesson in all timetables
-            for timetable in timetables_db:
-                for j, timetable_lesson in enumerate(timetable.lessons):
-                    if timetable_lesson.id == lesson_id:
-                        timetable.lessons[j] = lessons_db[i]
-            return RedirectResponse(url="/lessons/", status_code=303)
+    # Update the lesson in all timetables
+    for timetable in timetables_db:
+        for i, timetable_lesson in enumerate(timetable.lessons):
+            if timetable_lesson.id == lesson_id:
+                timetable.lessons[i] = lesson
     
-    raise HTTPException(status_code=404, detail="Lesson not found")
+    return RedirectResponse(url="/lessons/", status_code=303)
 
 @app.post("/lessons/{lesson_id}/delete")
 async def lesson_delete(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
     
-    for i, lesson in enumerate(lessons_db):
-        if lesson.id == lesson_id:
-            lessons_db.pop(i)
-            # Remove lesson from timetables
-            for timetable in timetables_db:
-                timetable.lessons = [l for l in timetable.lessons if l.id != lesson_id]
-            return RedirectResponse(url="/lessons/", status_code=303)
+    lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
     
-    raise HTTPException(status_code=404, detail="Lesson not found")
+    global_lessons_db.remove(lesson)
+    
+    # Remove lesson from timetables
+    for timetable in timetables_db:
+        timetable.lessons = [l for l in timetable.lessons if l.id != lesson_id]
+    
+    return RedirectResponse(url="/lessons/", status_code=303)
 
 
 # Timetable routes
 @app.get("/timetable/")
-async def view_timetable(request: Request, week_start: date = None, current_user: UserInDB = Depends(get_current_user)):
-    if week_start is None:
-        # If no week is specified, use the current week
-        week_start = date.today() - timedelta(days=date.today().weekday())
-    
-    week_end = week_start + timedelta(days=6)
-    
-    # Find the timetable for the current user and specified week
+async def view_timetable(request: Request, current_user: UserInDB = Depends(get_current_user)):
     timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
     
     if not timetable:
-        # If no timetable exists, create an empty one
-        timetable = Timetable(id=len(timetables_db) + 1, user_id=current_user.id, week_start=week_start, week_end=week_end, lessons=[])
-        timetables_db.append(timetable)
+        return templates.TemplateResponse("timetable_view.html", {
+            "request": request,
+            "current_user": current_user,
+            "timetable": None
+        })
     
-    return templates.TemplateResponse("timetable_view.html", {"request": request, "timetable": timetable, "current_user": current_user})
+    # Sort lessons by day of week and start time
+    day_order = {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4}
+    sorted_lessons = sorted(timetable.lessons, key=lambda x: (day_order[x.day_of_week], x.start_time))
+    
+    # Group lessons by day
+    lessons_by_day = {day: [] for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]}
+    for lesson in sorted_lessons:
+        lessons_by_day[lesson.day_of_week].append(lesson)
+    
+    return templates.TemplateResponse("timetable_view.html", {
+        "request": request,
+        "current_user": current_user,
+        "timetable": timetable,
+        "lessons_by_day": lessons_by_day
+    })
 
 @app.get("/timetables/{user_id}/{week_start}", response_model=Timetable)
 async def get_weekly_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):

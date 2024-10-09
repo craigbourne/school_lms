@@ -9,47 +9,18 @@
 <body>
   <div class="dashboard-container">
     <h1>Welcome to School LMS Dashboard</h1>
-    <div class="user-info">
-      <h2>Welcome, {{ user.username }}!</h2>
-      <p>Role: {{ user.role }}</p>
-    </div>
+
+    <h2>Welcome, {{ user.username }}!</h2>
+    <p>Role: {{ user.role }}</p>
+
     <div class="dashboard-actions">
-      <a href="{{ url_for('view_timetable') }}" class="action-button">View Weekly Timetable</a>
-      <a href="{{ url_for('list_lessons') }}" class="action-button">View Lessons</a>
-      {% if user.role in ['admin', 'teacher'] %}
-      <a href="{{ url_for('lesson_add_form') }}" class="action-button">Add New Lesson</a>
-      {% endif %}
-      <a href="{{ url_for('logout') }}" class="action-button logout-button ">Logout</a>
+        <a href="{{ url_for('view_timetable') }}" class="action-button">View Weekly Timetable</a>
+        <a href="{{ url_for('list_lessons') }}" class="action-button">View Lessons</a>
+        {% if user.role in ['admin', 'teacher'] %}
+            <a href="{{ url_for('lesson_add_form') }}" class="action-button">Add New Lesson</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" class="action-button logout-button">Logout</a>
     </div>
-    {% if timetable %}
-    <div class="timetable-preview">
-      <h3>Your Timetable for the Week of {{ timetable.week_start }}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>Subject</th>
-            <th>Teacher</th>
-            <th>Classroom</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for lesson in timetable.lessons %}
-          <tr>
-            <td>{{ lesson.day_of_week }}</td>
-            <td>{{ lesson.subject }}</td>
-            <td>{{ lesson.teacher }}</td>
-            <td>{{ lesson.classroom }}</td>
-            <td>{{ lesson.start_time }} - {{ lesson.end_time }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p>No timetable available.</p>
-    {% endif %}
-  </div>
+</div>
 </body>
 </html>
