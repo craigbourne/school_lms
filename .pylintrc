@@ -118,6 +118,8 @@ unsafe-load-any-extension=no
 [MASTER]
 ignore-patterns=
 
+ignored-modules=pydantic
+
 [BASIC]
 
 # Naming style matching correct argument names.
@@ -292,7 +294,7 @@ exclude-too-few-public-methods=
 ignored-parents=
 
 # Maximum number of arguments for function / method.
-max-args=6
+max-args=5
 
 # Maximum number of attributes for a class (see R0902).
 max-attributes=7
@@ -322,7 +324,7 @@ max-returns=6
 max-statements=50
 
 # Minimum number of public methods for a class (see R0903).
-min-public-methods=2
+min-public-methods=1
 
 
 [EXCEPTIONS]
@@ -347,7 +349,7 @@ indent-after-paren=4
 indent-string='    '
 
 # Maximum number of characters on a single line.
-max-line-length=120
+max-line-length=79
 
 # Maximum number of lines in a module.
 max-module-lines=1000
@@ -422,6 +424,8 @@ confidence=HIGH,
            INFERENCE_FAILURE,
            UNDEFINED
 
+
+
 # Disable the message, report, category or checker with the given id(s). You
 # can either give multiple identifiers separated by comma (,) or put this
 # option multiple times (only on the command line, not in the configuration
@@ -441,6 +445,7 @@ disable=raw-checker-failed,
         use-symbolic-message-instead,
         use-implicit-booleaness-not-comparison-to-string,
         use-implicit-booleaness-not-comparison-to-zero,
+        C0111,
         C0114,
         C0115,
         C0116,
