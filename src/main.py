@@ -18,22 +18,22 @@ from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-from src.auth import (
+from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
     create_access_token,
     get_user,
     SECRET_KEY,
     UserInDB
-  )
-from src.models import (
+)
+from models import (
     Lesson,
     LessonCreate,
     Timetable,
     TimetableCreate,
     RegisterModel,
     form_body
-  )
+)
 
 # Initialise FastAPI application
 app = FastAPI()
@@ -66,12 +66,12 @@ def get_password_hash(password):
 
 def authenticate_user(username: str, password: str):
     print(f"Attempting to authenticate user: {username}")
-    user = get_user(username)
+    user = auth.get_user(username)
     if not user:
         print(f"User not found: {username}")
         return False
     print(f"User found: {user}")
-    if not verify_password(password, user.hashed_password):
+    if not auth.verify_password(password, user.hashed_password):
         print(f"Password verification failed for user: {username}")
         return False
     print(f"Authentication successful for user: {username}")
@@ -295,6 +295,10 @@ create_test_accounts()
 users_db.extend(create_mock_teachers() + create_mock_students())
 global_lessons_db = create_mock_lessons()
 timetables_db = create_mock_timetables()
+
+# Share the users_db with the auth module
+import auth
+auth.users_db = users_db
 
 # Route definitions
 # Auth routes

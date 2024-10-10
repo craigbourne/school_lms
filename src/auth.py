@@ -7,8 +7,6 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 
-users_db = []
-
 SECRET_KEY = "your-secret-key"  # Replace with a real secret key in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -77,3 +75,5 @@ def get_user(username: str) -> Optional[UserInDB]:
         if user.username == username:
             return user
     return None
+
+users_db = []
