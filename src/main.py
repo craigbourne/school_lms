@@ -18,15 +18,15 @@ from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-from auth import (
+from src.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
     create_access_token,
     get_user,
-    SECRET_KEY
+    SECRET_KEY,
+    UserInDB
   )
-from models import (
-    UserInDB,
+from src.models import (
     Lesson,
     LessonCreate,
     Timetable,
@@ -34,8 +34,6 @@ from models import (
     RegisterModel,
     form_body
   )
-
-import auth
 
 # Initialise FastAPI application
 app = FastAPI()
@@ -297,8 +295,6 @@ create_test_accounts()
 users_db.extend(create_mock_teachers() + create_mock_students())
 global_lessons_db = create_mock_lessons()
 timetables_db = create_mock_timetables()
-
-auth.users_db = users_db
 
 # Route definitions
 # Auth routes

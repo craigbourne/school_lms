@@ -1,13 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from pydantic import BaseModel
-
-from models import UserInDB
+from pydantic import BaseModel, EmailStr
 
 users_db = []
 
@@ -17,6 +15,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class UserInDB(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    hashed_password: str
+    role: str = "student"
+    year_group: Optional[int] = None
+    subjects: Optional[List[str]] = None
+
+    class Config:
+        orm_mode = True
 
 class Token(BaseModel):
     access_token: str

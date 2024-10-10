@@ -14,16 +14,6 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
 
-class UserInDB(UserBase):
-    id: int
-    hashed_password: str
-    role: str = "student"
-    year_group: Optional[int] = None
-    subjects: Optional[List[str]] = None
-
-    class Config:
-        orm_mode = True
-
 class RegisterModel(BaseModel):
     username: str
     password: str
