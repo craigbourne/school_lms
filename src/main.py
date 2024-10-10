@@ -253,6 +253,10 @@ def create_mock_lessons():
                     global_lessons_db.append(new_lesson)
                     lesson_slots[day][hour][year_group] = new_lesson
                     lesson_id += 1
+                    
+                    # Print the newly created lesson
+                    print(f"Created lesson: {new_lesson.subject} on {new_lesson.day_of_week} at {new_lesson.start_time} for Year {new_lesson.year_group} in {new_lesson.classroom} with {new_lesson.teacher}")
+
 
     return global_lessons_db
 
