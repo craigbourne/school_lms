@@ -509,8 +509,7 @@ async def create_lesson(
         if (current_user.role == "admin" or
             (current_user.role == "teacher" and
             new_lesson.teacher == current_user.username) or
-            (timetable.user_id == current_user.id and
-              new_lesson.year_group == current_user.year_group)
+            new_lesson.year_group == current_user.year_group
             ):
             timetable.lessons.append(new_lesson)
 
@@ -604,7 +603,6 @@ async def lesson_add(
     day_of_week: str = Form(...),
     start_time: str = Form(...),
     year_group: int = Form(...),
-    # timetable_id: int = Form(...),
     current_user: UserInDB = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "teacher"]:
