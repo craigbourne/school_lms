@@ -2,7 +2,13 @@
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, EmailStr, validator
+
+def form_body(cls):
+    async def as_form(**kwargs):
+        return cls(**jsonable_encoder(kwargs))
+    return as_form
 
 class UserBase(BaseModel):
     username: str
@@ -18,6 +24,13 @@ class UserInDB(UserBase):
     class Config:
         orm_mode = True
 
+class RegisterModel(BaseModel):
+    username: str
+    password: str
+    email: str
+    role: str
+    year_group: Optional[int] = None
+
 class LessonBase(BaseModel):
     subject: str
     teacher: str
@@ -26,6 +39,12 @@ class LessonBase(BaseModel):
     start_time: time
     end_time: time
     year_group: int
+
+class Lesson(LessonBase):
+    id: int
+
+    class Config:
+        orm_mode = True
 
 # pylint: disable=no-self-argument
 class LessonCreate(LessonBase):
@@ -51,11 +70,19 @@ class LessonCreate(LessonBase):
                 )
         return v
 
-class Lesson(LessonBase):
-    id: int
+class LessonEditModel(BaseModel):
+    subject: str
+    classroom: str
+    day_of_week: str
+    start_time: str
+    year_group: int
 
-    class Config:
-        orm_mode = True
+class LessonAddModel(BaseModel):
+    subject: str
+    classroom: str
+    day_of_week: str
+    start_time: str
+    year_group: int
 
 class Timetable(BaseModel):
     id: int

@@ -1,20 +1,49 @@
-from auth import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, create_access_token, decode_access_token, get_current_user, get_user, SECRET_KEY, Token
+import random
 from datetime import date, datetime, time, timedelta
-from fastapi import FastAPI, Cookie, Depends, Form, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from typing import List, Optional
+
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    status
+  )
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
-from models import UserInDB, Lesson, LessonCreate, Timetable, TimetableCreate
 from passlib.context import CryptContext
-import random
-from token_blacklist import add_to_blacklist
-from typing import List, Optional
 
-app = FastAPI() # Initialise FastAPI application
-templates = Jinja2Templates(directory="templates") # Set up Jinja2 HTML templates
-app.mount("/static", StaticFiles(directory="static"), name="static") # Mount a static files directory
+from auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALGORITHM,
+    create_access_token,
+    get_current_user,
+    get_user,
+    SECRET_KEY
+  )
+from models import (
+    UserInDB,
+    Lesson,
+    LessonCreate,
+    Timetable,
+    TimetableCreate,
+    LessonAddModel,
+    LessonEditModel,
+    RegisterModel,
+    form_body
+  )
+
+import auth
+# Initialise FastAPI application
+app = FastAPI()
+# Set up Jinja2 HTML templates
+templates = Jinja2Templates(directory="templates")
+# Mount a static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -54,12 +83,18 @@ def authenticate_user(username: str, password: str):
 async def get_current_user(request: Request):
     token = request.cookies.get("access_token")
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="Not authenticated"
+        )
+
     scheme, _, param = token.partition(" ")
     if scheme.lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication scheme")
-    
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="Invalid authentication scheme"
+        )
+
     try:
         payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -69,8 +104,11 @@ async def get_current_user(request: Request):
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
         return user
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+            ) from exc
 
 def check_lesson_conflict(new_lesson, user_id):
     timetable = next((t for t in timetables_db if t.user_id == user_id), None)
@@ -84,7 +122,7 @@ def check_lesson_conflict(new_lesson, user_id):
 
 # Mock data creation functions
 def create_test_accounts():
-    global users_db
+    global users_db # pylint: disable=global-variable-not-assigned
     test_accounts = [
         {"username": "admin", "password": "adminpass", "role": "admin", "email": "admin@school.com"},
         {"username": "teacher1", "password": "teacherpass", "role": "teacher", "email": "teacher1@school.com"},
@@ -137,14 +175,14 @@ def create_mock_students():
     return students
 
 def create_mock_lessons():
-    global global_lessons_db
+    global global_lessons_db # pylint: disable=global-statement
     teachers = create_mock_teachers()
     subjects = ["Math", "English", "Science", "History", "Geography", "Art", "Music", "Physical Education"]
     lesson_id = 1
     lesson_slots = {day: {hour: {year: None for year in range(7, 12)} for hour in range(9, 15)} for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]}
-    
+
     global_lessons_db = []  # Reset global_lessons_db
-    
+
     for teacher in teachers:
         for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]:
             for hour in range(9, 15):
@@ -167,17 +205,17 @@ def create_mock_lessons():
                     global_lessons_db.append(new_lesson)
                     lesson_slots[day][hour][year_group] = new_lesson
                     lesson_id += 1
-    
+
     return global_lessons_db
 
 def create_mock_timetables():
-    global global_lessons_db
+    global global_lessons_db # pylint: disable=global-statement
     users = users_db
     timetables = []
-    
+
     if global_lessons_db is None:
         global_lessons_db = []  # Initialise if it's None
-    
+
     for user in users:
         user_lessons = []
         if user.role == "student":
@@ -186,7 +224,7 @@ def create_mock_timetables():
             user_lessons = [lesson for lesson in global_lessons_db if lesson.teacher == user.username]
         else:  # admin sees all lessons
             user_lessons = global_lessons_db.copy()  # Use a copy to avoid modifying the original list
-        
+
         timetable = Timetable(
             id=len(timetables) + 1,
             user_id=user.id,
@@ -195,7 +233,7 @@ def create_mock_timetables():
             lessons=user_lessons
         )
         timetables.append(timetable)
-    
+
     return timetables
 
 # Initialise mock data
@@ -204,7 +242,6 @@ users_db.extend(create_mock_teachers() + create_mock_students())
 global_lessons_db = create_mock_lessons()
 timetables_db = create_mock_timetables()
 
-import auth
 auth.users_db = users_db
 
 # Route definitions
@@ -220,38 +257,34 @@ async def register_page(request: Request):
 @app.post("/register")
 async def register(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-    email: str = Form(...),
-    role: str = Form(...),
-    year_group: Optional[int] = Form(None)
+    register_data: RegisterModel = Depends(form_body(RegisterModel))
 ):
-    if role not in ["admin", "teacher", "student"]:
+    if register_data.role not in ["admin", "teacher", "student"]:
         return templates.TemplateResponse(
             "register.html",
             {"request": request, "error": "Invalid role"}
         )
-    
-    if any(user.username == username for user in users_db):
+
+    if any(user.username == register_data.username for user in users_db):
         return templates.TemplateResponse(
             "register.html",
             {"request": request, "error": "Username already registered"}
         )
-    
-    if role == "student" and not year_group:
+
+    if register_data.role == "student" and not register_data.year_group:
         return templates.TemplateResponse(
             "register.html",
             {"request": request, "error": "Year group is required for students"}
         )
-    
-    hashed_password = get_password_hash(password)
+
+    hashed_password = get_password_hash(register_data.password)
     new_user = UserInDB(
         id=len(users_db) + 1,
-        username=username,
-        email=email,
+        username=register_data.username,
+        email=register_data.email,
         hashed_password=hashed_password,
-        role=role,
-        year_group=year_group if role == "student" else None
+        role=register_data.role,
+        year_group=register_data.year_group if register_data.role == "student" else None
     )
     users_db.append(new_user)
 
@@ -282,7 +315,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     return response
 
 @app.get("/logout")
-async def logout(request: Request):
+async def logout(request: Request): # pylint: disable=unused-argument
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("access_token")
     return response
@@ -316,7 +349,7 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
 
-# Lesson routes 
+# Lesson routes
 @app.get("/lessons/")
 async def list_lessons(request: Request, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role == 'admin':
@@ -325,11 +358,11 @@ async def list_lessons(request: Request, current_user: UserInDB = Depends(get_cu
         visible_lessons = [lesson for lesson in global_lessons_db if lesson.teacher == current_user.username]
     else:
         visible_lessons = [lesson for lesson in global_lessons_db if lesson.year_group == current_user.year_group]
-    
+
     # Sort lessons by day of week and start time
     day_order = {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4}
     sorted_lessons = sorted(visible_lessons, key=lambda x: (day_order[x.day_of_week], x.start_time))
-    
+
     return templates.TemplateResponse("lesson_list.html", {"request": request, "lessons": sorted_lessons, "current_user": current_user})
 
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
@@ -343,57 +376,57 @@ async def get_lesson(lesson_id: int, current_user: UserInDB = Depends(get_curren
 async def create_lesson(lesson: LessonCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can create lessons")
-    
+
     if current_user.role == "teacher" and lesson.teacher != current_user.username:
         raise HTTPException(status_code=403, detail="Teachers can only create lessons for themselves")
-    
+
     if check_lesson_conflict(lesson, current_user.id):
         raise HTTPException(status_code=400, detail="You already have a lesson scheduled at this time")
 
     new_lesson = Lesson(id=len(global_lessons_db) + 1, **lesson.dict())
     global_lessons_db.append(new_lesson)
-    
+
     # Update timetables
     for timetable in timetables_db:
         if (current_user.role == "admin" or
             (current_user.role == "teacher" and new_lesson.teacher == current_user.username) or
             (timetable.user_id == current_user.id and new_lesson.year_group == current_user.year_group)):
             timetable.lessons.append(new_lesson)
-    
+
     return new_lesson
 
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
 async def update_lesson(lesson_id: int, updated_lesson: LessonCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can update lessons")
-    
+
     lesson_index = next((i for i, lesson in enumerate(lessons_db) if lesson.id == lesson_id), None)
     if lesson_index is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     if current_user.role == "teacher" and lessons_db[lesson_index].teacher != current_user.username:
         raise HTTPException(status_code=403, detail="Teachers can only update their own lessons")
-    
+
     if check_lesson_conflict(lesson, current_user.id):
         raise HTTPException(status_code=400, detail="This lesson conflicts with an existing lesson")
 
     updated_lesson_dict = updated_lesson.dict()
     updated_lesson_dict['id'] = lesson_id
     lessons_db[lesson_index] = Lesson(**updated_lesson_dict)
-    
+
     # Update timetables
     for timetable in timetables_db:
         for i, lesson in enumerate(timetable.lessons):
             if lesson.id == lesson_id:
                 timetable.lessons[i] = lessons_db[lesson_index]
-    
+
     return lessons_db[lesson_index]
 
 @app.delete("/lessons/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lesson(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
-    
+
     for i, lesson in enumerate(lessons_db):
         if lesson.id == lesson_id:
             lessons_db.pop(i)
@@ -411,31 +444,27 @@ async def lesson_add_form(request: Request, current_user: UserInDB = Depends(get
 
 @app.post("/lessons/add/")
 async def lesson_add(
-    request: Request,
-    subject: str = Form(...),
-    classroom: str = Form(...),
-    day_of_week: str = Form(...),
-    start_time: str = Form(...),
-    year_group: int = Form(...),
+    request: Request,  # pylint: disable=unused-argument
+    lesson_data: LessonAddModel = Depends(form_body(LessonAddModel)),
     current_user: UserInDB = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can add lessons")
-    
+
     # Convert time string to time object
-    start_time_obj = datetime.strptime(start_time, "%H:%M").time()
+    start_time_obj = datetime.strptime(lesson_data.start_time, "%H:%M").time()
     end_time_obj = (datetime.combine(date.today(), start_time_obj) + timedelta(hours=1)).time()
-    
+
     new_lesson = LessonCreate(
-        subject=subject,
+        subject=lesson_data.subject,
         teacher=current_user.username,  # Use the current user's username
-        classroom=classroom,
-        day_of_week=day_of_week,
+        classroom=lesson_data.classroom,
+        day_of_week=lesson_data.day_of_week,
         start_time=start_time_obj,
         end_time=end_time_obj,
-        year_group=year_group
+        year_group=lesson_data.year_group
     )
-    
+
     created_lesson = await create_lesson(new_lesson, current_user)
     return RedirectResponse(url="/lessons/", status_code=303)
 
@@ -443,93 +472,107 @@ async def lesson_add(
 async def lesson_edit_form(lesson_id: int, request: Request, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can edit lessons")
-    
+
     lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     return templates.TemplateResponse("lesson_edit.html", {"request": request, "lesson": lesson})
 
 @app.post("/lessons/{lesson_id}/edit")
 async def lesson_edit(
     lesson_id: int,
-    request: Request,
-    subject: str = Form(...),
-    classroom: str = Form(...),
-    day_of_week: str = Form(...),
-    start_time: str = Form(...),
-    year_group: int = Form(...),
+    request: Request,  # pylint: disable=unused-argument
+    lesson_data: LessonEditModel = Depends(form_body(LessonEditModel)),
     current_user: UserInDB = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Only administrators and teachers can edit lessons")
-    
+
     lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     if current_user.role == "teacher" and lesson.teacher != current_user.username:
         raise HTTPException(status_code=403, detail="Teachers can only update their own lessons")
-    
+
     # Convert time string to time object
-    start_time_obj = datetime.strptime(start_time, "%H:%M").time()
+    start_time_obj = datetime.strptime(lesson_data.start_time, "%H:%M").time()
     end_time_obj = (datetime.combine(date.today(), start_time_obj) + timedelta(hours=1)).time()
-    
+
     # Update the lesson
-    lesson.subject = subject
-    lesson.classroom = classroom
-    lesson.day_of_week = day_of_week
+    lesson.subject = lesson_data.subject
+    lesson.classroom = lesson_data.classroom
+    lesson.day_of_week = lesson_data.day_of_week
     lesson.start_time = start_time_obj
     lesson.end_time = end_time_obj
-    lesson.year_group = year_group
-    
+    lesson.year_group = lesson_data.year_group
+
     # Update the lesson in all timetables
     for timetable in timetables_db:
         for i, timetable_lesson in enumerate(timetable.lessons):
             if timetable_lesson.id == lesson_id:
                 timetable.lessons[i] = lesson
-    
+
     return RedirectResponse(url="/lessons/", status_code=303)
 
 @app.post("/lessons/{lesson_id}/delete")
 async def lesson_delete(lesson_id: int, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can delete lessons")
-    
+
     lesson = next((lesson for lesson in global_lessons_db if lesson.id == lesson_id), None)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     global_lessons_db.remove(lesson)
-    
+
     # Remove lesson from timetables
     for timetable in timetables_db:
         timetable.lessons = [l for l in timetable.lessons if l.id != lesson_id]
-    
+
     return RedirectResponse(url="/lessons/", status_code=303)
 
 
 # Timetable routes
 @app.get("/timetable/")
-async def view_timetable(request: Request, current_user: UserInDB = Depends(get_current_user)):
-    timetable = next((t for t in timetables_db if t.user_id == current_user.id), None)
-    
+async def view_timetable(
+    request: Request,
+    current_user: UserInDB = Depends(get_current_user)
+    ):
+    timetable = next((
+        t for t in timetables_db
+        if t.user_id == current_user.id),
+        None
+        )
+
     if not timetable:
         return templates.TemplateResponse("timetable_view.html", {
             "request": request,
             "current_user": current_user,
             "timetable": None
         })
-    
+
     # Sort lessons by day of week and start time
-    day_order = {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4}
-    sorted_lessons = sorted(timetable.lessons, key=lambda x: (day_order[x.day_of_week], x.start_time))
-    
+    day_order = {
+        "Monday": 0,
+        "Tuesday": 1,
+        "Wednesday": 2,
+        "Thursday": 3,
+        "Friday": 4
+        }
+    sorted_lessons = sorted(
+        timetable.lessons,
+        key=lambda x: (day_order[x.day_of_week], x.start_time))
+
     # Group lessons by day
-    lessons_by_day = {day: [] for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]}
+    lessons_by_day = {
+        day: []
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        }
     for lesson in sorted_lessons:
         lessons_by_day[lesson.day_of_week].append(lesson)
-    
+
     return templates.TemplateResponse("timetable_view.html", {
         "request": request,
         "current_user": current_user,
@@ -538,40 +581,73 @@ async def view_timetable(request: Request, current_user: UserInDB = Depends(get_
     })
 
 @app.get("/timetables/{user_id}/{week_start}", response_model=Timetable)
-async def get_weekly_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
+async def get_weekly_timetable(
+    user_id: int,
+    week_start: date,
+    current_user: UserInDB = Depends(get_current_user)
+    ):
     print(f"Searching for timetable: user_id={user_id}, week_start={week_start}")
     print(f"Current timetables in db: {timetables_db}")
-    
+
     if current_user.role == "student" and current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Students can only view their own timetable")
-    
-    timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+        raise HTTPException(
+            status_code=403,
+            detail="Students can only view their own timetable"
+            )
+
+    timetable = next((
+        t for t in timetables_db
+        if t.user_id == user_id and t.week_start == week_start),
+        None
+        )
     if not timetable:
         raise HTTPException(status_code=404, detail="Timetable not found")
-    
+
     return timetable
 
 @app.get("/timetables/{user_id}", response_model=Timetable)
-async def get_timetable(user_id: int, week_start: date, current_user: UserInDB = Depends(get_current_user)):
+async def get_timetable(
+    user_id: int,
+    week_start: date,
+    current_user: UserInDB = Depends(get_current_user)):
     try:
         if current_user.id != user_id and current_user.role not in ["admin", "teacher"]:
-            raise HTTPException(status_code=403, detail="You can only view your own timetable")
-        
-        timetable = next((t for t in timetables_db if t.user_id == user_id and t.week_start == week_start), None)
+            raise HTTPException(
+                status_code=403,
+                detail="You can only view your own timetable"
+                )
+
+        timetable = next((
+            t for t in timetables_db
+            if t.user_id == user_id and t.week_start == week_start),
+            None
+            )
         if not timetable:
             raise HTTPException(status_code=404, detail="Timetable not found")
-        
+
         return timetable
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid date format"
+            ) from exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred: {str(e)}"
+            ) from e
 
 @app.post("/timetables/", response_model=Timetable)
-async def create_timetable(timetable: TimetableCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_timetable(
+    timetable: TimetableCreate,
+    current_user: UserInDB = Depends(get_current_user)
+    ):
     if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Only administrators and teachers can create timetables")
-    
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators and teachers can create timetables"
+            )
+
     # Logic to create a timetable
     new_timetable = Timetable(
         id=len(timetables_db) + 1,
@@ -593,22 +669,35 @@ async def admin_timetables(
     year_group: Optional[int] = None
 ):
     if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only administrators can access this page")
-    
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators can access this page"
+            )
+
     filtered_timetables = timetables_db
 
     if teacher:
-        filtered_timetables = [t for t in filtered_timetables if any(lesson.teacher == teacher for lesson in t.lessons)]
-    
+        filtered_timetables = [
+            t for t in filtered_timetables
+            if any(lesson.teacher == teacher for lesson in t.lessons)
+            ]
+
     if year_group:
-        filtered_timetables = [t for t in filtered_timetables if any(lesson.year_group == year_group for lesson in t.lessons)]
-    
+        filtered_timetables = [
+            t for t in filtered_timetables
+            if any(lesson.year_group == year_group for lesson in t.lessons)
+            ]
+
     return templates.TemplateResponse(
         "admin_timetables.html",
         {
             "request": request,
             "timetables": filtered_timetables,
-            "teachers": list(set(lesson.teacher for timetable in timetables_db for lesson in timetable.lessons)),
+            "teachers": list(set(
+                lesson.teacher
+                for timetable in timetables_db
+                for lesson in timetable.lessons
+                )),
             "year_groups": list(range(7, 12))
         }
     )
@@ -616,7 +705,9 @@ async def admin_timetables(
 # Protected route
 @app.get("/protected")
 async def protected_route(current_user: UserInDB = Depends(get_current_user)):
-    return {"message": f"Hello, {current_user.username}! This is a protected route."}
+    return {"message":
+            f"Hello, {current_user.username}! This is a protected route."
+            }
 
 # Main execution block
 if __name__ == "__main__":
