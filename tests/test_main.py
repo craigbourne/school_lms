@@ -123,4 +123,49 @@ def test_view_timetable():
     # View timetable
     response = client.get("/timetable/", cookies={"access_token": access_token})
     assert response.status_code == 200
-    assert "timetable" in response.text
+    assert "Weekly Timetable" in response.text
+    assert "<table>" in response.text  # Check if timetable table is present
+    assert "<th>Monday</th>" in response.text  # Check if days of the week are present
+    assert "<td>09:00</td>" in response.text  # Check if time slots are present
+
+def test_admin_login_success():
+    # Register and login as an admin
+    client.post("/register", data={
+        "username": "adminuser",
+        "password": "adminpass",
+        "email": "admin@example.com",
+        "role": "admin"
+    })
+    response = client.post("/login", data={
+        "username": "adminuser",
+        "password": "adminpass"
+    })
+    return response.cookies.get("access_token")
+
+def test_teacher_login_success():
+    client.post("/register", data={
+        "username": "teacheruser",
+        "password": "teacherpass",
+        "email": "teacher@example.com",
+        "role": "teacher"
+    })
+    response = client.post("/login", data={
+        "username": "teacheruser",
+        "password": "teacherpass"
+    })
+    return response.cookies.get("access_token")
+
+def test_student_login_success():
+    # Register and login as a student
+    client.post("/register", data={
+        "username": "studentuser",
+        "password": "studentpass",
+        "email": "student@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    response = client.post("/login", data={
+        "username": "studentuser",
+        "password": "studentpass"
+    })
+    return response.cookies.get("access_token")
