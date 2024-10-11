@@ -76,3 +76,32 @@ def test_protected_route_authorised():
     response = client.get("/protected", cookies={"access_token": access_token})
     assert response.status_code == 200
     assert "This is a protected route" in response.json()["message"]
+
+def test_create_lesson():
+    # Register and login as a teacher
+    client.post("/register", data={
+        "username": "teacheruser",
+        "password": "teacherpass",
+        "email": "teacher@example.com",
+        "role": "teacher"
+    })
+    login_response = client.post("/login", data={
+        "username": "teacheruser",
+        "password": "teacherpass"
+    })
+    access_token = login_response.cookies.get("access_token")
+
+    # Create a lesson
+    lesson_data = {
+        "subject": "Math",
+        "teacher": "teacheruser",
+        "classroom": "Room 101",
+        "day_of_week": "Monday",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "year_group": 9
+    }
+    response = client.post("/lessons/", json=lesson_data, cookies={"access_token": access_token})
+    assert response.status_code == 200
+    assert response.json()["subject"] == "Math"
+    
