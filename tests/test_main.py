@@ -260,4 +260,39 @@ def test_delete_lesson_as_admin():
     assert response.status_code == 303
     assert response.headers["location"] == "/lessons/"
 
+def test_view_admin_timetables():
+    admin_token = test_admin_login_success()
+    response = client.get("/admin/timetables", cookies={"access_token": admin_token})
+    assert response.status_code == 200
+    assert "Admin Timetable View" in response.text
 
+def test_student_cannot_access_admin_timetables():
+    student_token = test_student_login_success()
+    response = client.get("/admin/timetables", cookies={"access_token": student_token})
+    assert response.status_code == 403
+
+def test_create_timetable_as_admin():
+    admin_token = test_admin_login_success()
+    response = client.post("/timetables/", json={
+        "user_id": 1,
+        "week_start": "2023-01-01",
+        "week_end": "2023-01-07"
+    }, cookies={"access_token": admin_token})
+    assert response.status_code == 200
+    assert "id" in response.json()
+
+def test_get_weekly_timetable():
+    student_token = test_student_login_success()
+    # Assuming the student's user_id is 1 and looking at the current week
+    from datetime import date, timedelta
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    response = client.get(f"/timetables/11/{week_start}", cookies={"access_token": student_token})
+    assert response.status_code == 200
+    assert "lessons" in response.json()
+
+def test_token_creation_and_validation():
+    token = create_access_token(data={"sub": "testuser"})
+    assert token is not None
+    decoded_username = decode_access_token(token)
+    assert decoded_username == "testuser"
