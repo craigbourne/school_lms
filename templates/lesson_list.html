@@ -8,7 +8,11 @@
 </head>
 <body>
   <h1>Lesson List</h1>
+  {% if current_user.role in ['admin', 'teacher'] %}
+  <a href="{{ url_for('lesson_add_form') }}">Add New Lesson</a>
+  {% endif %}
   
+  <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
   <table>
     <tr>
       <th>Subject</th>
@@ -40,11 +44,5 @@
     </tr>
     {% endfor %}
   </table>
-  
-  {% if current_user.role in ['admin', 'teacher'] %}
-  <a href="{{ url_for('lesson_add_form') }}">Add New Lesson</a>
-  {% endif %}
-  
-  <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
 </body>
 </html>

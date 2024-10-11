@@ -8,6 +8,7 @@
 </head>
 <body>
   <h1>Edit Lesson</h1>
+  <a href="{{ url_for('list_lessons') }}">Back to Lesson List</a>
   <form method="POST" action="">
     <div>
       <label for="subject">Subject:</label>
@@ -51,6 +52,5 @@
     </div>
     <button type="submit">Update Lesson</button>
   </form>
-  <a href="{{ url_for('list_lessons') }}">Back to Lesson List</a>
 </body>
 </html>

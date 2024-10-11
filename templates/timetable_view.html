@@ -9,7 +9,7 @@
 <body>
   <h1>Weekly Timetable</h1>
   <h2>Week of {{ timetable.week_start.strftime('%B %d, %Y') }}</h2>
-  
+    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
   {% if timetable %}
   <table>
     <tr>
@@ -43,7 +43,5 @@
   {% else %}
   <p>No timetable available.</p>
   {% endif %}
-  
-  <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
 </body>
 </html>
