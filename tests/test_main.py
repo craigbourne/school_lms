@@ -229,3 +229,35 @@ def test_view_lessons_as_student():
     response = client.get("/lessons/", cookies={"access_token": student_token})
     assert response.status_code == 200
     assert "Lesson List" in response.text
+
+def test_add_lesson_as_teacher():
+    teacher_token = test_teacher_login_success()
+    response = client.post("/lessons/add/", data={
+        "subject": "Physics",
+        "teacher": "teacheruser",
+        "classroom": "Lab 1",
+        "day_of_week": "Tuesday",
+        "start_time": "10:00",
+        "year_group": "10"
+    }, cookies={"access_token": teacher_token})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/lessons/"
+
+def test_delete_lesson_as_admin():
+    admin_token = test_admin_login_success()
+    # First, add a lesson
+    client.post("/lessons/add/", data={
+        "subject": "Biology",
+        "teacher": "adminuser",
+        "classroom": "Lab 4",
+        "day_of_week": "Friday",
+        "start_time": "14:00",
+        "year_group": "10"
+    }, cookies={"access_token": admin_token})
+
+    # Now delete the lesson (assuming the lesson ID is 2)
+    response = client.post("/lessons/2/delete", cookies={"access_token": admin_token})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/lessons/"
+
+
