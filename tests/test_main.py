@@ -29,9 +29,9 @@ def test_user_registration_success():
     print(f"Response content: {response.content}")
     assert response.status_code == 303  # Redirect status code
     assert response.headers["location"] == "/"  # Redirects to home page
-    
+
 def test_user_login_success():
-    # First, register a user
+    # Register a user
     client.post("/register", data={
         "username": "loginuser",
         "password": "loginpass",
@@ -39,8 +39,8 @@ def test_user_login_success():
         "role": "student",
         "year_group": "9"
     })
-    
-    # Now, try to login
+
+    # Try to login
     login_data = {
         "username": "loginuser",
         "password": "loginpass"
@@ -49,3 +49,30 @@ def test_user_login_success():
     assert response.status_code == 303  # Redirect status code
     assert response.headers["location"] == "/dashboard"  # Redirects to dashboard
     assert "access_token" in response.cookies
+
+
+def test_protected_route_unauthorised():
+    response = client.get("/protected")
+    assert response.status_code == 401  # Unauthorised
+
+def test_protected_route_authorised():
+    # Register and login
+    client.post("/register", data={
+        "username": "protecteduser",
+        "password": "protectedpass",
+        "email": "protected@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    login_response = client.post("/login", data={
+        "username": "protecteduser",
+        "password": "protectedpass"
+    })
+
+    # Get access token from the login response
+    access_token = login_response.cookies.get("access_token")
+
+    # Access the protected route
+    response = client.get("/protected", cookies={"access_token": access_token})
+    assert response.status_code == 200
+    assert "This is a protected route" in response.json()["message"]
