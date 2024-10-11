@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import random
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
