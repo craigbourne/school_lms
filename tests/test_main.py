@@ -104,4 +104,23 @@ def test_create_lesson():
     response = client.post("/lessons/", json=lesson_data, cookies={"access_token": access_token})
     assert response.status_code == 200
     assert response.json()["subject"] == "Math"
-    
+
+def test_view_timetable():
+    # Register and login as a student
+    client.post("/register", data={
+        "username": "studentuser",
+        "password": "studentpass",
+        "email": "student@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    login_response = client.post("/login", data={
+        "username": "studentuser",
+        "password": "studentpass"
+    })
+    access_token = login_response.cookies.get("access_token")
+
+    # View timetable
+    response = client.get("/timetable/", cookies={"access_token": access_token})
+    assert response.status_code == 200
+    assert "timetable" in response.text
