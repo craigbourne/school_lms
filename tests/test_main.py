@@ -11,10 +11,10 @@ from main import app # type: ignore
 
 client = TestClient(app)
 
-# def test_home_page():
-#     response = client.get("/")
-#     assert response.status_code == 200
-#     assert "Welcome to School LMS" in response.text
+def test_home_page():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Welcome to School LMS" in response.text
 
 def test_user_registration_success():
     form_data = {
@@ -29,3 +29,23 @@ def test_user_registration_success():
     print(f"Response content: {response.content}")
     assert response.status_code == 303  # Redirect status code
     assert response.headers["location"] == "/"  # Redirects to home page
+    
+def test_user_login_success():
+    # First, register a user
+    client.post("/register", data={
+        "username": "loginuser",
+        "password": "loginpass",
+        "email": "login@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    
+    # Now, try to login
+    login_data = {
+        "username": "loginuser",
+        "password": "loginpass"
+    }
+    response = client.post("/login", data=login_data)
+    assert response.status_code == 303  # Redirect status code
+    assert response.headers["location"] == "/dashboard"  # Redirects to dashboard
+    assert "access_token" in response.cookies
