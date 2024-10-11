@@ -310,15 +310,24 @@ auth.users_db = users_db
 async def home(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/register")
-async def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
-
 @app.post("/register")
 async def register(
     request: Request,
-    register_data: RegisterModel = Depends(form_body(RegisterModel))
+    username: str = Form(...),
+    password: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),
+    year_group: Optional[int] = Form(None)
 ):
+    register_data = RegisterModel(
+        username=username,
+        password=password,
+        email=email,
+        role=role,
+        year_group=year_group
+    )
+    print(f"Received registration data: {register_data}")
+
     if register_data.role not in ["admin", "teacher", "student"]:
         return templates.TemplateResponse(
             "register.html",

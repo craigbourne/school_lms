@@ -6,8 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, EmailStr, validator
 
 def form_body(cls):
-    async def as_form(**kwargs):
-        return cls(**jsonable_encoder(kwargs))
+    async def as_form(**data):
+        return cls(**data)
     return as_form
 
 class UserBase(BaseModel):
