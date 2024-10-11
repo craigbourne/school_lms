@@ -223,3 +223,9 @@ def test_logout():
     # Check if the access_token cookie is removed or expired
     access_token_cookie = next((cookie for cookie in response.cookies if cookie.key == "access_token"), None)
     assert access_token_cookie is None or access_token_cookie.value == ""
+
+def test_view_lessons_as_student():
+    student_token = get_student_token()
+    response = client.get("/lessons/", cookies={"access_token": student_token})
+    assert response.status_code == 200
+    assert "Lesson List" in response.text
