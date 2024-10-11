@@ -169,3 +169,24 @@ def test_student_login_success():
         "password": "studentpass"
     })
     return response.cookies.get("access_token")
+
+def test_register_duplicate_username():
+    # Register a user
+    client.post("/register", data={
+        "username": "duplicateuser",
+        "password": "testpass",
+        "email": "duplicate@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    
+    # Try to register again with the same username
+    response = client.post("/register", data={
+        "username": "duplicateuser",
+        "password": "anotherpass",
+        "email": "another@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    assert response.status_code == 200  # It should return to the registration page
+    assert "Username already registered" in response.text
