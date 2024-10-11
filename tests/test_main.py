@@ -8,6 +8,7 @@ sys.path.insert(0, str(src_path))
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
 from main import app # type: ignore
+import pytest
 
 client = TestClient(app)
 
@@ -190,3 +191,35 @@ def test_register_duplicate_username():
     })
     assert response.status_code == 200  # It should return to the registration page
     assert "Username already registered" in response.text
+
+def test_invalid_login():
+    response = client.post("/login", data={
+        "username": "nonexistentuser",
+        "password": "wrongpassword"
+    })
+    assert response.status_code == 401
+    assert "Incorrect username or password" in response.text
+
+def get_student_token():
+    # Register and login as a student
+    client.post("/register", data={
+        "username": "logoutstudent",
+        "password": "studentpass",
+        "email": "logout@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    response = client.post("/login", data={
+        "username": "logoutstudent",
+        "password": "studentpass"
+    })
+    return response.cookies.get("access_token")
+
+def test_logout():
+    student_token = get_student_token()
+    response = client.get("/logout", cookies={"access_token": student_token})
+    assert response.status_code == 200
+
+    # Check if the access_token cookie is removed or expired
+    access_token_cookie = next((cookie for cookie in response.cookies if cookie.key == "access_token"), None)
+    assert access_token_cookie is None or access_token_cookie.value == ""
