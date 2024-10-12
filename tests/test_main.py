@@ -7,7 +7,9 @@ sys.path.insert(0, str(src_path))
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
-from main import app # type: ignore
+from main import app, create_access_token, get_password_hash # type: ignore
+from auth import verify_password, decode_access_token # type: ignore
+from models import form_body # type: ignore
 import pytest
 
 client = TestClient(app)
@@ -296,3 +298,9 @@ def test_token_creation_and_validation():
     assert token is not None
     decoded_username = decode_access_token(token)
     assert decoded_username == "testuser"
+
+def test_password_hashing():
+    password = "testpassword"
+    hashed_password = get_password_hash(password)
+    assert verify_password(password, hashed_password)
+    assert not verify_password("wrongpassword", hashed_password)
