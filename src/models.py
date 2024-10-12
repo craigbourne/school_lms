@@ -2,7 +2,6 @@
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 
-from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, EmailStr, validator
 
 def form_body(cls):

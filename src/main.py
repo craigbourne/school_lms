@@ -32,8 +32,7 @@ from models import (
     LessonCreate,
     Timetable,
     TimetableCreate,
-    RegisterModel,
-    form_body
+    RegisterModel
 )
 
 # Initialise FastAPI application
@@ -256,7 +255,11 @@ def create_mock_lessons():
                     lesson_id += 1
 
                     # Print the newly created lesson
-                    print(f"Created lesson: {new_lesson.subject} on {new_lesson.day_of_week} at {new_lesson.start_time} for Year {new_lesson.year_group} in {new_lesson.classroom} with {new_lesson.teacher}")
+                    print("Created lesson: " +
+                    f"{new_lesson.subject} on {new_lesson.day_of_week} at " +
+                    f"{new_lesson.start_time} " + 
+                    f"for Year {new_lesson.year_group} " +
+                    f"in {new_lesson.classroom} with {new_lesson.teacher}")
 
     return global_lessons_db
 
