@@ -11,7 +11,7 @@ The application is pricipally developed in the Python programming language and l
 ## Key Features
 The application allows users to create accounts with usernames and passwords, assigning specific role-based permissions to administrators, parents, or students. Administrators retain the highest access privileges.
 
-### User Authentication and Authorization
+### User Authentication and Authorisation
 - Secure JWT (JSON Web Token) based authentication system
 - Role-based access control (Admin, Teacher, Student)
 - Password hashing for enhanced security
@@ -155,10 +155,11 @@ The lesson management interface includes conflict detection to prevent double-bo
 
 ## Security Measures
 
-- **Password Hashing**: All user passwords are securely hashed before storage
-- **CSRF Protection**: Implemented to prevent Cross-Site Request Forgery attacks
-- **Rate Limiting**: API rate limiting to prevent abuse and enhance stability
-- **Input Validation**: Strict input validation and sanitization to prevent injection attacks
+- **Password Hashing**: All user passwords are securely hashed before storage using bcrypt.
+- **Input Validation**: Basic input validation is implemented using Pydantic models to ensure data types match expected formats.
+- **JWT Authentication**: JSON Web Tokens are used for maintaining user sessions securely.
+
+Note: While the current implementation includes these basic security measures, a production-ready application would require additional security features such as CSRF protection, perhaps using a package like [fastapi-csrf-protect](https://pypi.org/project/fastapi-csrf-protect/), rate limiting possibly with a package like [slowapi](https://pypi.org/project/slowapi/), and more comprehensive input validation and sanitisation.
 
 ## Code Quality and Testing
 
@@ -192,6 +193,39 @@ pytest tests/test_main.py::test_user_login_success -v
 ```
 
 ## Future Enhancements
+
+While the current version of the School LMS serves as a prototype, potential enhancements could be implemented to improve functionality, security, and user experience:
+
+### Security Enhancements
+1. **Rate Limiting**: Add API rate limiting to prevent abuse and enhance system stability by limiting the number of requests a user can make in a given timeframe.
+
+2. **Two-Factor Authentication (2FA)**: Introduce an additional layer of security by implementing 2FA, requiring users to provide two different authentication factors to verify themselves.
+
+3. **Enhanced Input Validation**: Implement more stringent input validation and sanitisation to further protect against injection attacks and ensure data integrity.
+
+4. **CSRF Protection**: Implement Cross-Site Request Forgery protection to prevent unauthorised commands from being transmitted from a user that the web application trusts.
+
+### Feature Enhancements
+1. **Student Grading System**: Implement a grading feature allowing teachers to input or amend grades for assignments and exams, and students to view their academic progress.
+
+2. **Continuous Integration/Continuous Deployment (CI/CD) Pipeline**: Integrate a CI/CD pipeline using Jenkins to automate the testing process, ensuring code quality and streamlining the development workflow.
+
+3. **Advanced Admin Timetable Management**:
+Implement filtering options for the admin timetable view by teacher, class, or student.
+
+4. **Enhanced User Dashboards**:
+- For Teachers: Display upcoming lessons and provide quick access to student lists.
+- For Students: Show today's timetable, upcoming homework or assignments, and recent grades.
+
+5. **Interactive Timetable**: Develop an interactive timetable interface allowing users to click on and expand individual lessons for more details, providing a more engaging and informative user experience.
+
+6. **Advanced Lesson Management**:
+- Implement advanced filtering and sorting options in the lesson list view.
+- Introduce bulk operations functionality, allowing administrators or teachers to perform actions on multiple lessons simultaneously. For example, if a teacher was absent from school due to illness or other circumstances, an entire week's worth of lessons could be rescheduled or reassigned to a different teacher or teachers with a single operation, significantly improving efficiency in timetable management.
+
+7. **Integration with External Calendar Systems**: Allow synchronisation with popular calendar applications (e.g., Google Calendar, Outlook) to help users manage their schedules more effectively.
+
+8. **Notification System**: Develop a notification system to alert users about timetable changes, upcoming deadlines, or important announcements.
 
 ## Support
 

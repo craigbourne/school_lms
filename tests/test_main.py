@@ -53,7 +53,6 @@ def test_user_login_success():
     assert response.headers["location"] == "/dashboard"  # Redirects to dashboard
     assert "access_token" in response.cookies
 
-
 def test_protected_route_unauthorised():
     response = client.get("/protected")
     assert response.status_code == 401  # Unauthorised
