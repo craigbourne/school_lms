@@ -6,7 +6,7 @@ This School LMS application is an MSc Computer Science project on the Secure Sof
 
 The application is ultimately designed to provide for the management and viewing of timetables, lessons and user accounts within a school environment. It offers role-based access control, allowing administrators, teachers, and students to interact with the system according to their specific needs and permissions. 
 
-The application is pricipally developed in the Python programming language and leverages built-in libraries and python packages. It employs a responsive web interface and client-server architecture for secure data handling.
+The application is principally developed in the Python programming language and leverages built-in libraries and Python packages. It employs a responsive web interface and client-server architecture for secure data handling.
 
 ## Key Features
 The application allows users to create accounts with usernames and passwords, assigning specific role-based permissions to administrators, parents, or students. Administrators retain the highest access privileges.

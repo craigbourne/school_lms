@@ -378,6 +378,10 @@ async def register(
 
     return RedirectResponse(url="/", status_code=303)
 
+@app.get("/register")
+async def register_form(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
+
 @app.post("/login")
 async def login(
     response: Response,
