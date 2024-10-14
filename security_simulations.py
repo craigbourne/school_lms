@@ -95,7 +95,6 @@ def simulate_api_injection(url: str) -> None:
         except requests.RequestException as e:
             print(f"Request failed: {e}")
 
-
 if __name__ == "__main__":
     base_url = "http://localhost:8000"
     

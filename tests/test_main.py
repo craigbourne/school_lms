@@ -1,24 +1,35 @@
+# Standard library imports
 import sys
 from pathlib import Path
 
 # Add the src directory to the Python path
+# Allows the tests to import modules from the src directory
 src_path = Path(__file__).parent.parent / 'src'
 sys.path.insert(0, str(src_path))
 
+# FastAPI and related imports
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
+
+# Local imports
 from main import app, create_access_token, get_password_hash # type: ignore
 from auth import verify_password, decode_access_token # type: ignore
 from models import form_body # type: ignore
+
+# Python testing framework for running the tests
 import pytest
 
+# from FastAPI for creating a test client
 client = TestClient(app)
 
+# Ensures the home page loads correctly
 def test_home_page():
     response = client.get("/")
     assert response.status_code == 200
     assert "Welcome to School LMS" in response.text
 
+# Authentication tests
+# Checks if user registration works correctly
 def test_user_registration_success():
     form_data = {
         "username": "testuser",
@@ -33,6 +44,7 @@ def test_user_registration_success():
     assert response.status_code == 303  # Redirect status code
     assert response.headers["location"] == "/"  # Redirects to home page
 
+# Verifies successful user login
 def test_user_login_success():
     # Register a user
     client.post("/register", data={
@@ -53,10 +65,115 @@ def test_user_login_success():
     assert response.headers["location"] == "/dashboard"  # Redirects to dashboard
     assert "access_token" in response.cookies
 
+# Tests admin login functionality
+def test_admin_login_success():
+    # Register and login as an admin
+    client.post("/register", data={
+        "username": "adminuser",
+        "password": "adminpass",
+        "email": "admin@example.com",
+        "role": "admin"
+    })
+    response = client.post("/login", data={
+        "username": "adminuser",
+        "password": "adminpass"
+    })
+    return response.cookies.get("access_token")
+
+# Ensures teacher login works
+def test_teacher_login_success():
+    client.post("/register", data={
+        "username": "teacheruser",
+        "password": "teacherpass",
+        "email": "teacher@example.com",
+        "role": "teacher"
+    })
+    response = client.post("/login", data={
+        "username": "teacheruser",
+        "password": "teacherpass"
+    })
+    return response.cookies.get("access_token")
+
+# Ensures student login works
+def test_student_login_success():
+    # Register and login as a student
+    client.post("/register", data={
+        "username": "studentuser",
+        "password": "studentpass",
+        "email": "student@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    response = client.post("/login", data={
+        "username": "studentuser",
+        "password": "studentpass"
+    })
+    return response.cookies.get("access_token")
+
+# Verifies handling of duplicate usernames during registration
+def test_register_duplicate_username():
+    # Register a user
+    client.post("/register", data={
+        "username": "duplicateuser",
+        "password": "testpass",
+        "email": "duplicate@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    
+    # Try to register again with the same username
+    response = client.post("/register", data={
+        "username": "duplicateuser",
+        "password": "anotherpass",
+        "email": "another@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    assert response.status_code == 200  # It should return to the registration page
+    assert "Username already registered" in response.text
+
+# Tests system response to invalid login attempts
+def test_invalid_login():
+    response = client.post("/login", data={
+        "username": "nonexistentuser",
+        "password": "wrongpassword"
+    })
+    assert response.status_code == 401
+    assert "Incorrect username or password" in response.text
+
+# Ensures logout functionality works correctly
+def test_logout():
+    student_token = get_student_token()
+    response = client.get("/logout", cookies={"access_token": student_token})
+    assert response.status_code == 200
+
+    # Check if the access_token cookie is removed or expired
+    access_token_cookie = next((cookie for cookie in response.cookies if cookie.key == "access_token"), None)
+    assert access_token_cookie is None or access_token_cookie.value == ""
+
+
+# Authorisation tests
+def get_student_token():
+    # Register and login as a student
+    client.post("/register", data={
+        "username": "logoutstudent",
+        "password": "studentpass",
+        "email": "logout@example.com",
+        "role": "student",
+        "year_group": "9"
+    })
+    response = client.post("/login", data={
+        "username": "logoutstudent",
+        "password": "studentpass"
+    })
+    return response.cookies.get("access_token")
+
+# Checks if unauthorised access to protected routes is prevented
 def test_protected_route_unauthorised():
     response = client.get("/protected")
     assert response.status_code == 401  # Unauthorised
 
+# Verifies authorised access to protected routes
 def test_protected_route_authorised():
     # Register and login
     client.post("/register", data={
@@ -79,6 +196,15 @@ def test_protected_route_authorised():
     assert response.status_code == 200
     assert "This is a protected route" in response.json()["message"]
 
+# Ensures students can't access admin-only pages
+def test_student_cannot_access_admin_timetables():
+    student_token = test_student_login_success()
+    response = client.get("/admin/timetables", cookies={"access_token": student_token})
+    assert response.status_code == 403
+
+
+# Lesson management tests
+# Verifies lesson creation functionality
 def test_create_lesson():
     # Register and login as a teacher
     client.post("/register", data={
@@ -107,6 +233,47 @@ def test_create_lesson():
     assert response.status_code == 200
     assert response.json()["subject"] == "Math"
 
+# Tests adding a lesson as a teacher
+def test_add_lesson_as_teacher():
+    teacher_token = test_teacher_login_success()
+    response = client.post("/lessons/add/", data={
+        "subject": "Physics",
+        "teacher": "teacheruser",
+        "classroom": "Lab 1",
+        "day_of_week": "Tuesday",
+        "start_time": "10:00",
+        "year_group": "10"
+    }, cookies={"access_token": teacher_token})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/lessons/"
+
+# Checks lesson deletion by an admin
+def test_delete_lesson_as_admin():
+    admin_token = test_admin_login_success()
+    # First, add a lesson
+    client.post("/lessons/add/", data={
+        "subject": "Biology",
+        "teacher": "adminuser",
+        "classroom": "Lab 4",
+        "day_of_week": "Friday",
+        "start_time": "14:00",
+        "year_group": "10"
+    }, cookies={"access_token": admin_token})
+
+    response = client.post("/lessons/2/delete", cookies={"access_token": admin_token})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/lessons/"
+
+# Ensures students can view lessons
+def test_view_lessons_as_student():
+    student_token = get_student_token()
+    response = client.get("/lessons/", cookies={"access_token": student_token})
+    assert response.status_code == 200
+    assert "Lesson List" in response.text
+
+
+# Timetable tests 
+# Checks if timetable viewing works for students
 def test_view_timetable():
     # Register and login as a student
     client.post("/register", data={
@@ -130,148 +297,14 @@ def test_view_timetable():
     assert "<th>Monday</th>" in response.text  # Check if days of the week are present
     assert "<td>09:00</td>" in response.text  # Check if time slots are present
 
-def test_admin_login_success():
-    # Register and login as an admin
-    client.post("/register", data={
-        "username": "adminuser",
-        "password": "adminpass",
-        "email": "admin@example.com",
-        "role": "admin"
-    })
-    response = client.post("/login", data={
-        "username": "adminuser",
-        "password": "adminpass"
-    })
-    return response.cookies.get("access_token")
-
-def test_teacher_login_success():
-    client.post("/register", data={
-        "username": "teacheruser",
-        "password": "teacherpass",
-        "email": "teacher@example.com",
-        "role": "teacher"
-    })
-    response = client.post("/login", data={
-        "username": "teacheruser",
-        "password": "teacherpass"
-    })
-    return response.cookies.get("access_token")
-
-def test_student_login_success():
-    # Register and login as a student
-    client.post("/register", data={
-        "username": "studentuser",
-        "password": "studentpass",
-        "email": "student@example.com",
-        "role": "student",
-        "year_group": "9"
-    })
-    response = client.post("/login", data={
-        "username": "studentuser",
-        "password": "studentpass"
-    })
-    return response.cookies.get("access_token")
-
-def test_register_duplicate_username():
-    # Register a user
-    client.post("/register", data={
-        "username": "duplicateuser",
-        "password": "testpass",
-        "email": "duplicate@example.com",
-        "role": "student",
-        "year_group": "9"
-    })
-    
-    # Try to register again with the same username
-    response = client.post("/register", data={
-        "username": "duplicateuser",
-        "password": "anotherpass",
-        "email": "another@example.com",
-        "role": "student",
-        "year_group": "9"
-    })
-    assert response.status_code == 200  # It should return to the registration page
-    assert "Username already registered" in response.text
-
-def test_invalid_login():
-    response = client.post("/login", data={
-        "username": "nonexistentuser",
-        "password": "wrongpassword"
-    })
-    assert response.status_code == 401
-    assert "Incorrect username or password" in response.text
-
-def get_student_token():
-    # Register and login as a student
-    client.post("/register", data={
-        "username": "logoutstudent",
-        "password": "studentpass",
-        "email": "logout@example.com",
-        "role": "student",
-        "year_group": "9"
-    })
-    response = client.post("/login", data={
-        "username": "logoutstudent",
-        "password": "studentpass"
-    })
-    return response.cookies.get("access_token")
-
-def test_logout():
-    student_token = get_student_token()
-    response = client.get("/logout", cookies={"access_token": student_token})
-    assert response.status_code == 200
-
-    # Check if the access_token cookie is removed or expired
-    access_token_cookie = next((cookie for cookie in response.cookies if cookie.key == "access_token"), None)
-    assert access_token_cookie is None or access_token_cookie.value == ""
-
-def test_view_lessons_as_student():
-    student_token = get_student_token()
-    response = client.get("/lessons/", cookies={"access_token": student_token})
-    assert response.status_code == 200
-    assert "Lesson List" in response.text
-
-def test_add_lesson_as_teacher():
-    teacher_token = test_teacher_login_success()
-    response = client.post("/lessons/add/", data={
-        "subject": "Physics",
-        "teacher": "teacheruser",
-        "classroom": "Lab 1",
-        "day_of_week": "Tuesday",
-        "start_time": "10:00",
-        "year_group": "10"
-    }, cookies={"access_token": teacher_token})
-    assert response.status_code == 303
-    assert response.headers["location"] == "/lessons/"
-
-def test_delete_lesson_as_admin():
-    admin_token = test_admin_login_success()
-    # First, add a lesson
-    client.post("/lessons/add/", data={
-        "subject": "Biology",
-        "teacher": "adminuser",
-        "classroom": "Lab 4",
-        "day_of_week": "Friday",
-        "start_time": "14:00",
-        "year_group": "10"
-    }, cookies={"access_token": admin_token})
-
-    # Now delete the lesson (assuming the lesson ID is 2)
-    response = client.post("/lessons/2/delete", cookies={"access_token": admin_token})
-    assert response.status_code == 303
-    assert response.headers["location"] == "/lessons/"
-
+# Verifies admin can view all timetables
 def test_view_admin_timetables():
     admin_token = test_admin_login_success()
     response = client.get("/admin/timetables", cookies={"access_token": admin_token})
     assert response.status_code == 200
     assert "Admin Timetable View" in response.text
 
-def test_student_cannot_access_admin_timetables():
-    student_token = test_student_login_success()
-    response = client.get("/admin/timetables", cookies={"access_token": student_token})
-    assert response.status_code == 403
-
+# Tests timetable creation by an admin
 def test_create_timetable_as_admin():
     admin_token = test_admin_login_success()
     response = client.post("/timetables/", json={
@@ -282,6 +315,7 @@ def test_create_timetable_as_admin():
     assert response.status_code == 200
     assert "id" in response.json()
 
+# Ensures retrieval of weekly timetables works
 def test_get_weekly_timetable():
     student_token = test_student_login_success()
     # Assuming the student's user_id is 1 and looking at the current week
@@ -292,12 +326,15 @@ def test_get_weekly_timetable():
     assert response.status_code == 200
     assert "lessons" in response.json()
 
+# Security tests
+# Checks JWT token creation and validation
 def test_token_creation_and_validation():
     token = create_access_token(data={"sub": "testuser"})
     assert token is not None
     decoded_username = decode_access_token(token)
     assert decoded_username == "testuser"
 
+# Verifies password hashing functionality
 def test_password_hashing():
     password = "testpassword"
     hashed_password = get_password_hash(password)

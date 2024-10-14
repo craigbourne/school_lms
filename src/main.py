@@ -1,8 +1,12 @@
+# Ensure absolute imports are used
 from __future__ import absolute_import
+
+# Standard library imports
 import random
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 
+# FastAPI and related imports
 from fastapi import (
     Depends,
     FastAPI,
@@ -16,9 +20,12 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
+# Third-party imports for JWT handling and password hashing
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
+# Local imports from auth and models modules
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -41,19 +48,21 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 # Mount a static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# Set up password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Set up OAuth2 password flow for token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Initialise empty databases
 users_db = [] # Simulated database for users
 lessons_db = [] # Simulated database for lessons
-global_lessons_db = []  # Initialize global_lessons_db as an empty list
+global_lessons_db = []  # Initialise global_lessons_db as an empty list
 timetables_db: List[Timetable] = [] # Simulated database for timetable
 
 login_attempts = {} # track login attempts
 
 # Helper functions
+# Verifies a plain password against a hashed password
 def verify_password(plain_password, hashed_password):
     print(f"Verifying password: {plain_password}")
     print(f"Hashed password: {hashed_password}")
@@ -61,9 +70,11 @@ def verify_password(plain_password, hashed_password):
     print(f"Password verification result: {result}")
     return result
 
+# Generates a hash for the given password
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+# Authenticates a user based on username and password
 def authenticate_user(username: str, password: str):
     print(f"Attempting to authenticate user: {username}")
     user = auth.get_user(username)
@@ -77,6 +88,7 @@ def authenticate_user(username: str, password: str):
     print(f"Authentication successful for user: {username}")
     return user
 
+# Retrieves the current user based on the JWT token in the request cookies
 async def get_current_user(request: Request):
     token = request.cookies.get("access_token")
     if not token:
@@ -113,6 +125,7 @@ async def get_current_user(request: Request):
             detail="Invalid token"
             ) from exc
 
+# Checks if a new lesson conflicts with existing lessons for a user
 def check_lesson_conflict(new_lesson, user_id):
     timetable = next((
         t for t in timetables_db if t.user_id == user_id),
@@ -127,6 +140,7 @@ def check_lesson_conflict(new_lesson, user_id):
     return False
 
 # Mock data creation functions
+# Creates test user accounts with predefined roles
 def create_test_accounts():
     global users_db # pylint: disable=global-variable-not-assigned
     test_accounts = [
@@ -163,6 +177,7 @@ def create_test_accounts():
             f"{account['username']} ({account['role']})")
     print(f"Current users in db: {users_db}")
 
+# Creates mock teacher accounts with random subjects
 def create_mock_teachers():
     subjects = [
         "Math",
@@ -188,6 +203,7 @@ def create_mock_teachers():
         teachers.append(teacher)
     return teachers
 
+# Creates mock student accounts with random year groups
 def create_mock_students():
     students = []
     for i in range(2):
@@ -203,6 +219,7 @@ def create_mock_students():
         students.append(student)
     return students
 
+# Creates mock lessons for teachers and year groups
 def create_mock_lessons():
     global global_lessons_db # pylint: disable=global-statement
     teachers = create_mock_teachers()
@@ -263,6 +280,7 @@ def create_mock_lessons():
 
     return global_lessons_db
 
+# Creates mock timetables for users based on their roles
 def create_mock_timetables():
     global global_lessons_db # pylint: disable=global-statement
     users = users_db
@@ -298,21 +316,31 @@ def create_mock_timetables():
     return timetables
 
 # Initialise mock data
+# Create predefined test accounts (admin, teacher, student)
 create_test_accounts()
+
+# Add additional mock teachers and students to the users database
 users_db.extend(create_mock_teachers() + create_mock_students())
+
+# Generate mock lessons and store them in the global lessons database
 global_lessons_db = create_mock_lessons()
+
+# Create mock timetables
 timetables_db = create_mock_timetables()
 
 # Share the users_db with the auth module
 import auth
 auth.users_db = users_db
 
+
 # Route definitions
 # Auth routes
+# Renders the home page
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
+# Handles user registration
 @app.post("/register")
 async def register(
     request: Request,
@@ -378,10 +406,12 @@ async def register(
 
     return RedirectResponse(url="/", status_code=303)
 
+# Renders the registration form page
 @app.get("/register")
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
+# Handles user login and sets JWT token in cookies
 @app.post("/login")
 async def login(
     response: Response,
@@ -399,12 +429,14 @@ async def login(
     )
     return response
 
+# Handles user logout by deleting the access token cookie
 @app.get("/logout")
 async def logout(request: Request): # pylint: disable=unused-argument
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("access_token")
     return response
 
+# Generates and returns a JWT access token for authenticated users
 @app.post("/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends()
@@ -427,6 +459,7 @@ async def login_for_access_token(
 
 
 # Dashboard and user info routes
+# Renders the user dashboard
 @app.get("/dashboard")
 async def dashboard(
     request: Request,
@@ -437,11 +470,14 @@ async def dashboard(
         {"request": request, "user": current_user}
         )
 
+# Returns information about the current authenticated user
 @app.get("/users/me")
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
+
 # Lesson routes
+# Lists lessons based on the user's role
 @app.get("/lessons/")
 async def list_lessons(
     request: Request,
@@ -481,6 +517,7 @@ async def list_lessons(
         }
       )
 
+# Retrieves a specific lesson by ID
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
 async def get_lesson(
     lesson_id: int,
@@ -495,6 +532,7 @@ async def get_lesson(
         raise HTTPException(status_code=404, detail="Lesson not found")
     return lesson
 
+# Creates a new lesson
 @app.post("/lessons/", response_model=Lesson)
 async def create_lesson(
     lesson: LessonCreate,
@@ -534,6 +572,7 @@ async def create_lesson(
 
     return new_lesson
 
+# Updates an existing lesson
 @app.put("/lessons/{lesson_id}", response_model=Lesson)
 async def update_lesson(
     lesson_id: int,
@@ -578,6 +617,7 @@ async def update_lesson(
 
     return lessons_db[lesson_index]
 
+# Deletes a lesson
 @app.delete("/lessons/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lesson(
     lesson_id: int,
@@ -601,6 +641,7 @@ async def delete_lesson(
             return
     raise HTTPException(status_code=404, detail="Lesson not found")
 
+# Renders the form for adding a new lesson
 @app.get("/lessons/add/")
 async def lesson_add_form(
     request: Request,
@@ -613,6 +654,7 @@ async def lesson_add_form(
             )
     return templates.TemplateResponse("lesson_add.html", {"request": request})
 
+# Handles the submission of a new lesson
 @app.post("/lessons/add/")
 async def lesson_add(
     request: Request, # pylint: disable=unused-argument
@@ -645,6 +687,7 @@ async def lesson_add(
     await create_lesson(new_lesson, current_user)
     return RedirectResponse(url="/lessons/", status_code=303)
 
+# Renders the form for editing an existing lesson
 @app.get("/lessons/{lesson_id}/edit")
 async def lesson_edit_form(
     lesson_id: int,
@@ -669,6 +712,7 @@ async def lesson_edit_form(
         {"request": request, "lesson": lesson}
         )
 
+# Handles the submission of an edited lesson
 @app.post("/lessons/{lesson_id}/edit")
 async def lesson_edit(
     lesson_id: int,
@@ -725,6 +769,7 @@ async def lesson_edit(
 
     return RedirectResponse(url="/lessons/", status_code=303)
 
+# Handles the deletion of a lesson
 @app.post("/lessons/{lesson_id}/delete")
 async def lesson_delete(
       lesson_id: int,
@@ -753,6 +798,7 @@ async def lesson_delete(
 
 
 # Timetable routes
+# Renders the timetable view for the current user
 @app.get("/timetable/")
 async def view_timetable(
     request: Request,
@@ -798,6 +844,7 @@ async def view_timetable(
         "lessons_by_day": lessons_by_day
     })
 
+# Retrieves a weekly timetable for a specific user and week
 @app.get("/timetables/{user_id}/{week_start}", response_model=Timetable)
 async def get_weekly_timetable(
     user_id: int,
@@ -826,6 +873,7 @@ async def get_weekly_timetable(
 
     return timetable
 
+# Retrieves a timetable for a specific user
 @app.get("/timetables/{user_id}", response_model=Timetable)
 async def get_timetable(
     user_id: int,
@@ -859,6 +907,7 @@ async def get_timetable(
             detail=f"An error occurred: {str(e)}"
             ) from e
 
+# Creates a new timetable
 @app.post("/timetables/", response_model=Timetable)
 async def create_timetable(
     timetable: TimetableCreate,
@@ -883,6 +932,7 @@ async def create_timetable(
 
 
 # Admin routes
+# Renders the admin view of all timetables with optional filtering
 @app.get("/admin/timetables")
 async def admin_timetables(
     request: Request,
@@ -924,7 +974,7 @@ async def admin_timetables(
         }
     )
 
-# Protected route
+# A sample protected route that requires authentication
 @app.get("/protected")
 async def protected_route(current_user: UserInDB = Depends(get_current_user)):
     return {"message":
