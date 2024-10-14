@@ -52,6 +52,50 @@ def simulate_dos(url: str, num_requests: int, max_workers: int = 10) -> None:
     print(f"Failed requests: {results[0]}")
     print(f"Requests per second: {requests_per_second:.2f}")
 
+def simulate_api_injection(url: str) -> None:
+    print("Simulating API Injection attacks")
+
+    test_cases = [
+        ("Normal data", {
+            "username": "normaluser",
+            "password": "normalpass",
+            "email": "normal@example.com",
+            "role": "student",
+            "year_group": 9
+        }),
+        ("SQL Injection attempt", {
+            "username": "admin' --",
+            "password": "doesn't matter",
+            "email": "hacker@example.com",
+            "role": "student",
+            "year_group": 9
+        }),
+        ("XSS attempt", {
+            "username": "<script>alert('XSS')</script>",
+            "password": "xsspass",
+            "email": "xss@example.com",
+            "role": "student",
+            "year_group": 9
+        }),
+        ("Role escalation attempt", {
+            "username": "hackerman",
+            "password": "hackpass",
+            "email": "hack@example.com",
+            "role": "admin",  # Attempting to register as admin
+            "year_group": 9
+        })
+    ]
+
+    for case_name, data in test_cases:
+        print(f"\nTesting: {case_name}")
+        try:
+            response = requests.post(url, json=data)
+            print(f"Status: {response.status_code}")
+            print(f"Response: {response.text[:100]}...")  # Print first 100 characters of response
+        except requests.RequestException as e:
+            print(f"Request failed: {e}")
+
+
 if __name__ == "__main__":
     base_url = "http://localhost:8000"
     
@@ -60,3 +104,6 @@ if __name__ == "__main__":
     
     print("\nRunning DoS Simulation:")
     simulate_dos(base_url, 50)  # Simulating with 50 requests
+
+    print("\nRunning API Injection Simulation:")
+    simulate_api_injection(f"{base_url}/register")
